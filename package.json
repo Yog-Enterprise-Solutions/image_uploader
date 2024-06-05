@@ -1,0 +1,15 @@
+{
+  "name": "image_uploader",
+  "version": "1.0.0",
+  "description": "its an app to upload images",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "postinstall": "cd upload_image && yarn install",
+    "dev": "cd upload_image && yarn dev",
+    "build": "cd upload_image && yarn build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
