@@ -3,7 +3,20 @@ import "./App.css";
 import { FrappeApp } from "frappe-js-sdk";
 
 function App() {
-  const siteurl = "https://yash.tranqwality.com";
+  const getSiteName = () => {
+    if (
+      window.frappe?.boot?.versions?.frappe &&
+      (window.frappe.boot.versions.frappe.startsWith("15") ||
+        window.frappe.boot.versions.frappe.startsWith("16"))
+    ) {
+      return window.frappe?.boot?.sitename ?? import.meta.env.VITE_SITE_NAME;
+    }
+    return import.meta.env.VITE_SITE_NAME;
+  };
+
+  const frappeUrl = getSiteName();
+
+  const siteurl = frappeUrl;
   const frappe = new FrappeApp(siteurl);
   const auth = frappe.auth();
   const db = frappe.db();
