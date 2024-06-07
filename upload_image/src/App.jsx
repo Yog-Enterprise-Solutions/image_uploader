@@ -1063,7 +1063,12 @@ function App() {
             <label htmlFor="users"></label>
             <select
               id="users"
-              style={{ width: "30%", height: "30px", borderRadius: "10px" }}
+              style={{
+                width: "30%",
+                height: "30px",
+                borderRadius: "10px",
+                marginBottom: "10px",
+              }}
             >
               {users.map((user, index) => (
                 <option key={index} value={user}>
