@@ -1,22 +1,23 @@
 import React, { useState, useEffect, useRef } from "react";
 import "./App.css";
 import { FrappeApp } from "frappe-js-sdk";
+import LoaderComponent from "./Loader";
 
 function App() {
-  const getSiteName = () => {
-    if (
-      window.frappe?.boot?.versions?.frappe &&
-      (window.frappe.boot.versions.frappe.startsWith("15") ||
-        window.frappe.boot.versions.frappe.startsWith("16"))
-    ) {
-      return window.frappe?.boot?.sitename ?? import.meta.env.VITE_SITE_NAME;
-    }
-    return import.meta.env.VITE_SITE_NAME;
-  };
+  // const getSiteName = () => {
+  //   if (
+  //     window.frappe?.boot?.versions?.frappe &&
+  //     (window.frappe.boot.versions.frappe.startsWith("15") ||
+  //       window.frappe.boot.versions.frappe.startsWith("16"))
+  //   ) {
+  //     return window.frappe?.boot?.sitename ?? import.meta.env.VITE_SITE_NAME;
+  //   }
+  //   return import.meta.env.VITE_SITE_NAME;
+  // };
 
-  const frappeUrl = getSiteName();
+  // const frappeUrl = getSiteName();
 
-  const siteurl = frappeUrl;
+  const siteurl = "https://yash.tranqwality.com/";
   const frappe = new FrappeApp(siteurl);
   const auth = frappe.auth();
   const db = frappe.db();
@@ -109,6 +110,7 @@ function App() {
   }, [lead]);
 
   const fieldRef = useRef(null);
+  const [folderlist, setFolderList] = useState("");
 
   const initializeFolders = async () => {
     try {
@@ -204,8 +206,10 @@ function App() {
       pre_install_folder_list = JSON.parse(pre_install_folder_list);
       if (feildname === "Pre Install Folder List") {
         data = pre_install_folder_list;
+        setFolderList("Pre Install Folder List");
       } else {
         data = post_install_folder_list;
+        setFolderList("Post Install Folder List");
       }
 
       // console.log("Data before mapping:", data);
@@ -213,12 +217,11 @@ function App() {
       //   console.error("Data is not an array:", data);
       //   throw new Error("Data is not an array");
       // }
-
+      console.log(data);
       const newFolders = data.map(([mainHeading, subheadings], mainIndex) => {
         const folder = {
           id: mainIndex + 1,
           mainname: mainHeading,
-          images: [],
           minimized: false,
           subfolders: subheadings.map(
             ([subheading, value, custom_custom_description_], subIndex) => ({
@@ -232,8 +235,6 @@ function App() {
         };
         return folder;
       });
-
-      console.log("New folders:", newFolders);
       setFolders(newFolders);
     } catch (error) {
       console.error("Error initializing folders:", error);
@@ -244,6 +245,10 @@ function App() {
   }, [fieldRef.current?.value]);
 
   const callfolder = async () => {
+    let foldlist = [];
+    const feildname = fieldRef.current.value;
+    setFolderList(feildname);
+    console.log("callfeildname", feildname);
     try {
       const docs = await db.getDocList("File", {
         fields: ["name", "file_name"],
@@ -253,25 +258,41 @@ function App() {
           ["file_name", "=", parentfolder],
         ],
       });
-
       if (docs.length > 0) {
-        const mainFolders = await db.getDocList("File", {
+        foldlist = await db.getDocList("File", {
           fields: ["name", "file_name"],
           filters: [
             ["folder", "=", `Home/${parentfolder}`],
             ["is_folder", "=", 1],
+            ["file_name", "=", feildname],
           ],
         });
-
+      } else {
+        initializeFolders();
+      }
+      if (foldlist.length > 0) {
+        const mainFolders = await db.getDocList("File", {
+          fields: ["name", "file_name"],
+          filters: [
+            ["folder", "=", `Home/${parentfolder}/${feildname}`],
+            ["is_folder", "=", 1],
+          ],
+        });
         const allSubfolders = await Promise.all(
           mainFolders.map(async (mainFolder) => {
             const subFolders = await db.getDocList("File", {
               fields: ["name", "file_name", "custom_custom_description_"],
               filters: [
-                ["folder", "=", `Home/${parentfolder}/${mainFolder.file_name}`],
+                [
+                  "folder",
+                  "=",
+                  `Home/${parentfolder}/${feildname}/${mainFolder.file_name}`,
+                ],
                 ["is_folder", "=", 1],
               ],
             });
+
+            let totalImageCount = 0;
 
             const subfolderImages = await Promise.all(
               subFolders.map(async (subFolder) => {
@@ -287,11 +308,11 @@ function App() {
                     [
                       "folder",
                       "=",
-                      `Home/${parentfolder}/${mainFolder.file_name}/${subFolder.file_name}`,
+                      `Home/${parentfolder}/${feildname}/${mainFolder.file_name}/${subFolder.file_name}`,
                     ],
                   ],
                 });
-                // console.log(subFolder, "mysubfolder");
+
                 const imageList = images.map((img) => ({
                   src: `${siteurl}${img.file_url}`,
                   name: img.file_name,
@@ -299,12 +320,12 @@ function App() {
                   flag: img.flag || false,
                 }));
 
+                totalImageCount += imageList.length;
+
                 return {
                   id: subFolder.name,
                   name: subFolder.file_name,
                   images: imageList,
-                  // custom_custom_description_:
-                  //   subFolder.custom_custom_description_ || "",
                   minimized: false,
                 };
               })
@@ -314,13 +335,17 @@ function App() {
               id: mainFolder.name,
               mainname: mainFolder.file_name,
               subfolders: subfolderImages,
+              imageCount: totalImageCount,
             };
           })
         );
 
         setFolders(allSubfolders);
         setCount(1);
-        console.log(allSubfolders);
+        console.log(allSubfolders, "all folders");
+        console.log(folderlist, "folderlist");
+      } else {
+        initializeFolders();
       }
     } catch (error) {
       console.error("Error fetching folders:", error);
@@ -331,7 +356,7 @@ function App() {
     if (count === 0) {
       callfolder();
     }
-  }, [parentfolder]);
+  }, [parentfolder, folderlist]);
 
   const [users, setusers] = useState([]);
   const callUser = async () => {
@@ -357,7 +382,7 @@ function App() {
   }, [count]);
 
   const handleFolderClick = (folder, index) => {
-    // setCurrentFolderIndex(index);
+    setCurrentFolderIndex(index);
     const updatedFolders = folders.map((f, i) =>
       i === index ? { ...f, minimized: !f.minimized } : f
     );
@@ -513,8 +538,12 @@ function App() {
     });
   };
 
+  const [loading, setLoading] = useState(false);
+
   const createfolders = async () => {
-    console.log(parentfolder);
+    const feildname = fieldRef.current.value;
+    console.log(feildname, "feildname");
+    setLoading(true);
     try {
       let existingParentFolder = await db.getDocList("File", {
         fields: ["name"],
@@ -532,6 +561,21 @@ function App() {
         });
       }
 
+      let existingFolderlist = await db.getDocList("File", {
+        fields: ["name"],
+        filters: [
+          ["folder", "=", `Home/${parentfolder}`],
+          ["file_name", "=", feildname],
+        ],
+      });
+
+      if (existingFolderlist.length === 0) {
+        await db.createDoc("File", {
+          file_name: feildname,
+          is_folder: 1,
+          folder: `Home/${parentfolder}`,
+        });
+      }
       for (const folder of folders) {
         try {
           const mainFolderName = folder.mainname;
@@ -539,7 +583,7 @@ function App() {
           let existingMainFolder = await db.getDocList("File", {
             fields: ["name"],
             filters: [
-              ["folder", "=", `Home/${parentfolder}`],
+              ["folder", "=", `Home/${parentfolder}/${feildname}`],
               ["file_name", "=", mainFolderName],
             ],
           });
@@ -548,22 +592,26 @@ function App() {
             await db.createDoc("File", {
               file_name: mainFolderName,
               is_folder: 1,
-              folder: `Home/${parentfolder}`,
+              folder: `Home/${parentfolder}/${feildname}`,
             });
           }
 
           for (const subfolder of folder.subfolders) {
             try {
               const subfolderName = subfolder.name;
-              // const subfolderdisc = subfolder.custom_custom_description_;
-              // console.log("subfolder", subfolder),
-              //   console.log("subfolderdisc", subfolderdisc);
+              const subfolderdisc = subfolder.custom_custom_description_;
+              console.log("subfolder", subfolder),
+                console.log("subfolderdisc", subfolderdisc);
 
               // Check if the subfolder exists
               let existingSubFolder = await db.getDocList("File", {
                 fields: ["name"],
                 filters: [
-                  ["folder", "=", `Home/${parentfolder}/${mainFolderName}`],
+                  [
+                    "folder",
+                    "=",
+                    `Home/${parentfolder}/${feildname}/${mainFolderName}`,
+                  ],
                   ["file_name", "=", subfolderName],
                 ],
               });
@@ -573,7 +621,7 @@ function App() {
                 await db.createDoc("File", {
                   file_name: subfolderName,
                   is_folder: 1,
-                  folder: `Home/${parentfolder}/${mainFolderName}`,
+                  folder: `Home/${parentfolder}/${feildname}/${mainFolderName}`,
                 });
               }
 
@@ -588,7 +636,7 @@ function App() {
                   [
                     "folder",
                     "=",
-                    `Home/${parentfolder}/${mainFolderName}/${subfolderName}`,
+                    `Home/${parentfolder}/${feildname}/${mainFolderName}/${subfolderName}`,
                   ],
                 ],
               });
@@ -631,7 +679,7 @@ function App() {
               const fileArgs = {
                 isPrivate: true,
                 flag: true,
-                folder: `Home/${parentfolder}/${mainFolderName}/${subfolderName}`,
+                folder: `Home/${parentfolder}/${feildname}/${mainFolderName}/${subfolderName}`,
                 doctype: "User",
                 docname: "Administrator",
                 fieldname: "image",
@@ -663,17 +711,26 @@ function App() {
           }
         }
       }
+      setLoading(false);
       alert("All images have been uploaded successfully.");
     } catch (error) {
       console.error("Error uploading images:", error);
+      setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (loading === true) {
+      document.querySelector(".allfeild").style.display = "none";
+    } else {
+      document.querySelector(".allfeild").style.display = "block";
+    }
+  }, [loading]);
 
   const openpdf = () => {
     document.querySelector(".pdf").style.display = "block";
     document.querySelector(".main").style.display = "none";
   };
-
   const createdoc = () => {
     db.updateDoc("image printer", "77ca1a2b9a", {
       title: "Test",
@@ -797,6 +854,7 @@ function App() {
           </div>
         </div>
       </div>
+      {loading && <LoaderComponent />}
       <div className="allfeild" style={{ display: "none" }}>
         <div class="hamburger-menu">
           <input id="menu__toggle" type="checkbox" />
@@ -810,13 +868,22 @@ function App() {
             <li class="menu__item">{firstName}</li>
             {folders.map((folder, folderIndex) => (
               <li key={folder.id} className="singlefolders">
-                <a href={`#${folder.mainname.toLowerCase()}`}>
+                <a
+                  href={`#${folder.mainname.toLowerCase()}`}
+                  style={{
+                    textDecoration: "none",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
                   <h2
                     className="folder-heading"
                     style={{ color: "black", fontSize: "1.5em" }}
                   >
                     {folder.mainname}
                   </h2>
+                  <p style={{ fontSize: "1.5em" }}>{folder.imageCount}</p>
                 </a>
               </li>
             ))}
@@ -840,12 +907,13 @@ function App() {
               display: "flex",
               position: "fixed",
               top: "0px",
-              width: "300px",
+              width: "290px",
               height: "100vh",
               margin: "0px",
               listStyle: "none",
               backgroundColor: "#ECEFF1",
               flexDirection: "column",
+              padding: "22px",
             }}
           >
             <li>
@@ -873,14 +941,20 @@ function App() {
               >
                 <a
                   href={`#${folder.mainname.toLowerCase()}`}
-                  style={{ textDecoration: "none" }}
+                  style={{
+                    textDecoration: "none",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
                 >
-                  <h5
+                  <h2
                     className="folder-heading"
-                    style={{ color: "black", fontSize: "1em" }}
+                    style={{ color: "black", fontSize: "1.5em" }}
                   >
                     {folder.mainname}
-                  </h5>
+                  </h2>
+                  <p style={{ fontSize: "1.5em" }}>{folder.imageCount}</p>
                 </a>
               </li>
             ))}
@@ -996,7 +1070,7 @@ function App() {
             <label htmlFor="feild"></label>
             <select
               ref={fieldRef}
-              onChange={initializeFolders}
+              onChange={callfolder}
               id="feild"
               style={{ width: "30%", height: "30px", borderRadius: "10px" }}
             >
