@@ -217,10 +217,9 @@ function App() {
       //   console.error("Data is not an array:", data);
       //   throw new Error("Data is not an array");
       // }
-      console.log(data);
       const newFolders = data.map(([mainHeading, subheadings], mainIndex) => {
         const folder = {
-          id: mainIndex + 1,
+          index: mainIndex + 1,
           mainname: mainHeading,
           minimized: false,
           subfolders: subheadings.map(
@@ -235,6 +234,7 @@ function App() {
         };
         return folder;
       });
+      console.log(newFolders);
       setFolders(newFolders);
     } catch (error) {
       console.error("Error initializing folders:", error);
@@ -272,11 +272,15 @@ function App() {
       }
       if (foldlist.length > 0) {
         const mainFolders = await db.getDocList("File", {
-          fields: ["name", "file_name"],
+          fields: ["name", "file_name", "idx"],
           filters: [
             ["folder", "=", `Home/${parentfolder}/${feildname}`],
             ["is_folder", "=", 1],
           ],
+          orderBy: {
+            field: "creation",
+            order: "asc",
+          },
         });
         const allSubfolders = await Promise.all(
           mainFolders.map(async (mainFolder) => {
@@ -332,6 +336,7 @@ function App() {
             );
 
             return {
+              idx: mainFolder.idx,
               id: mainFolder.name,
               mainname: mainFolder.file_name,
               subfolders: subfolderImages,
@@ -342,8 +347,7 @@ function App() {
 
         setFolders(allSubfolders);
         setCount(1);
-        console.log(allSubfolders, "all folders");
-        console.log(folderlist, "folderlist");
+        console.log(mainFolders, "mainFolders");
       } else {
         initializeFolders();
       }
@@ -579,6 +583,7 @@ function App() {
       for (const folder of folders) {
         try {
           const mainFolderName = folder.mainname;
+          const mainFolderIndex = folder.index;
           // Check if the main folder exists
           let existingMainFolder = await db.getDocList("File", {
             fields: ["name"],
@@ -593,6 +598,7 @@ function App() {
               file_name: mainFolderName,
               is_folder: 1,
               folder: `Home/${parentfolder}/${feildname}`,
+              idx: mainFolderIndex,
             });
           }
 
