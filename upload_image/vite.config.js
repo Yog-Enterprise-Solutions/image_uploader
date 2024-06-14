@@ -10,11 +10,11 @@ export default defineConfig({
 		
 		includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
 		manifest: {
-			name: 'Gatekeepr Pass App',
-			short_name: 'Gatekeeper pass App Project',
+			name: 'Image Uploade',
+			short_name: 'Image Uploade Project',
 			theme_color: '#ffffff',
-			start_url: "/pwa",
-			description: "Gatekeepr pass PWA",
+			start_url: "/upload_image",
+			description: "upload_image",
 			icons: [
 				{
 					src: 'pwa-64x64.png',
