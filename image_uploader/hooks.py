@@ -224,6 +224,13 @@ doc_events = {
 # default_log_clearing_doctypes = {
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
-
+fixtures=[
+     {"dt": "Custom Field", "filters": [
+		[
+			"name", "in", [
+            "File-custom_custom_description_","File-custom_flag","File-custom_description"				]
+		]
+	]},
+]
 
 website_route_rules = [{'from_route': '/upload_image/<path:app_path>', 'to_route': 'upload_image'},]
