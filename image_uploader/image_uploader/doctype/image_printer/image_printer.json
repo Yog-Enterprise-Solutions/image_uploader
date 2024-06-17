@@ -5,12 +5,14 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "folder_column",
   "title",
   "flag",
   "select",
   "description",
   "file_link",
-  "lead_ref"
+  "lead_ref",
+  "folder"
  ],
  "fields": [
   {
@@ -45,11 +47,22 @@
    "fieldname": "lead_ref",
    "fieldtype": "Data",
    "label": "Lead Ref."
+  },
+  {
+   "fieldname": "folder_column",
+   "fieldtype": "Column Break",
+   "label": "Folder"
+  },
+  {
+   "fieldname": "folder",
+   "fieldtype": "Select",
+   "label": "Folder",
+   "options": "Pre Install Folder\nPost Install Folder\nAll"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-05-28 15:58:13.678673",
+ "modified": "2024-06-17 13:09:11.470895",
  "modified_by": "Administrator",
  "module": "Image Uploader",
  "name": "image printer",

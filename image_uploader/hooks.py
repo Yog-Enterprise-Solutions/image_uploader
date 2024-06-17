@@ -125,6 +125,9 @@ app_license = "mit"
 doc_events = {
 	"Lead": {
 		"on_update": "image_uploader.override.lead.create_folders",
+	},
+	"image printer": {
+		"validate": "image_uploader.override.image_printer.doc_link",
 	}
 }
 

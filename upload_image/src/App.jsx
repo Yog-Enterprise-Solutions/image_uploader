@@ -41,7 +41,9 @@ function App() {
     "Post Install Folder",
   ]);
   const [invoiceList, setInvoiceList] = useState([]);
-
+  const [userstate, setuserstate] = useState("");
+  const [usercountry, setusercountry] = useState("");
+  const [userstreet, setuserstreet] = useState("");
   useEffect(() => {
     const storedIsLoggedIn = localStorage.getItem("isLoggedIn");
     if (storedIsLoggedIn === "true") {
@@ -100,7 +102,7 @@ function App() {
   function getUrlParameter(name) {
     name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
     var regex = new RegExp("[\\?&]" + name + "=([^&#]*)");
-    var results = regex.exec(location.search);
+    var results = regex.exec(window.location.search);
     return results === null
       ? ""
       : decodeURIComponent(results[1].replace(/\+/g, " "));
@@ -110,154 +112,26 @@ function App() {
   const lead = getUrlParameter("lead");
   const firstName = getUrlParameter("first_name");
   const typeoffolder = getUrlParameter("type");
+
   useEffect(() => {
     if (lead) {
       setParentfolder(lead);
     }
   }, [lead]);
 
-  const [selectedUser, setSelectedUser] = useState(firstName);
+  const [selectedUser, setSelectedUser] = useState("");
   const fieldRef = useRef(null);
   const [folderlist, setFolderList] = useState("");
-
-  const initializeFolders = async (e) => {
-    try {
-      let post_install_folder_list = [];
-      let pre_install_folder_list = [];
-
-      let data = [
-        [
-          "Roof Measurements",
-          [
-            ["Complete with all the measurements", ""],
-            ["Roof Obstructions", ""],
-            ["Tilts of every plane", ""],
-          ],
-        ],
-        [
-          "Electrical",
-          [
-            ["MSP (wide-angle)", ""],
-            ["MSP Cover", ""],
-            ["MSP Main Breaker", ""],
-            ["MSP (close-up, cover off)", ""],
-            ["MSP Voltage", ""],
-            ["Water main grounding", ""],
-            ["Meter (close-up)", ""],
-            ["Meter (wide-angle)", ""],
-            ["Service Conduit", ""],
-            ["Is there a sub-panel?", ""],
-            ["Sub Panel", ""],
-            ["Electrical Red Flags", ""],
-            ["Ground rod/Clamp", ""],
-          ],
-        ],
-        [
-          "Rafters and Attic",
-          [
-            ["Size of Rafters", ""],
-            ["Spacing of Rafters", ""],
-            ["Attic Photos", ""],
-            ["Rafter/attic red flags", ""],
-            ["Working space in attic?", ""],
-          ],
-        ],
-        [
-          "Elevation",
-          [
-            ["Aurora Layout Picture", ""],
-            ["Front of Home", ""],
-            ["Right Side of Home", ""],
-            ["Left Side of Home", ""],
-            ["Rear of Home", ""],
-            ["Is there a detached structure?", ""],
-            ["Detached structure photos", ""],
-            ["Is there a sub-panel in the detached structure?", ""],
-            ["Distance of trench", ""],
-            ["Trench details", ""],
-            ["Additional exterior comments", ""],
-          ],
-        ],
-        [
-          "Roofing Material",
-          [
-            ["Potential Shading Issues?", ""],
-            ["Layers of shingle", ""],
-            ["Shading Issues", ""],
-            ["Roof condition passes?", ""],
-            ["Roof red flags", ""],
-            ["Additional roof comments", ""],
-          ],
-        ],
-        ["Miscellaneous Photos", [["Miscellaneous Photos", ""]]],
-        [
-          "Existing System",
-          [
-            ["Is there an existing system?", ""],
-            ["Module Type and Quantity", ""],
-            ["Inverter Type and Quantity", ""],
-          ],
-        ],
-      ];
-
-      const feildname = await fieldRef.current.value;
-      const doc = await db.getDoc("Image Folder Tree", feildname);
-      post_install_folder_list = doc.post_install_folder_list.replace(
-        /\\r\\n/g,
-        ""
-      );
-      pre_install_folder_list = doc.pre_install_folder_list.replace(
-        /\\r\\n/g,
-        ""
-      );
-      post_install_folder_list = JSON.parse(post_install_folder_list);
-      pre_install_folder_list = JSON.parse(pre_install_folder_list);
-      if (feildname === "Pre Install Folder") {
-        data = pre_install_folder_list;
-        setFolderList("Pre Install Folder");
-      } else {
-        data = post_install_folder_list;
-        setFolderList("Post Install Folder");
-      }
-
-      // console.log("Data before mapping:", data);
-      // if (!Array.isArray(data)) {
-      //   console.error("Data is not an array:", data);
-      //   throw new Error("Data is not an array");
-      // }
-      const newFolders = data.map(([mainHeading, subheadings], mainIndex) => {
-        const folder = {
-          index: mainIndex + 1,
-          mainname: mainHeading,
-          minimized: false,
-          subfolders: subheadings.map(
-            ([subheading, value, custom_custom_description_], subIndex) => ({
-              id: mainIndex * 10 + subIndex + 1,
-              name: subheading,
-              value: value,
-              images: [],
-              custom_custom_description_: custom_custom_description_,
-            })
-          ),
-        };
-        return folder;
-      });
-      setFolders(newFolders);
-    } catch (error) {
-      console.error("Error initializing folders:", error);
-    }
-  };
-  useEffect(() => {
-    initializeFolders();
-  }, [fieldRef.current?.value]);
+  const [inputValue, setInputValue] = useState("");
 
   useEffect(() => {
-    if (userManuallyChanged) {
+    if (!userManuallyChanged && invoiceList.length > 0) {
       const defaultUser =
-        invoiceList.find((user) => user.includes(firstName)) ||
-        invoiceList[0] ||
+        invoiceList.find((user) => user.title.includes(firstName))?.title ||
+        invoiceList[0].title ||
         " ";
       setSelectedUser(defaultUser);
+      console.log(defaultUser);
     }
   }, [invoiceList, firstName, userManuallyChanged]);
 
@@ -284,8 +158,6 @@ function App() {
             ["file_name", "=", feildname],
           ],
         });
-      } else {
-        initializeFolders();
       }
       if (foldlist.length > 0) {
         const mainFolders = await db.getDocList("File", {
@@ -361,8 +233,6 @@ function App() {
         );
 
         setFolders(allSubfolders);
-      } else {
-        initializeFolders();
       }
     } catch (error) {
       console.error("Error fetching folders:", error);
@@ -370,26 +240,28 @@ function App() {
     setCount(1);
   };
 
-  const callUser = async () => {
-    try {
-      const docs = await db.getDocList("Lead");
-      let newUsers = [""];
-      for (const doc of docs) {
-        const userDoc = await db.getDoc("Lead", doc.name);
-        console.log(userDoc, "its a userdoc");
-        newUsers.push(userDoc.lead_name);
-      }
-      setInvoiceList(newUsers);
-    } catch (error) {
-      console.error("There was an error while fetching the documents:", error);
-    }
-  };
-
   useEffect(() => {
     if (count === 0) {
       callfolder();
     }
   }, [parentfolder, folderlist]);
+
+  const callUser = async () => {
+    try {
+      let newUsers = [];
+      const docs = await db.getDocList("Lead", {
+        fields: ["title", "name"],
+      });
+      newUsers.push(
+        ...docs.map((doc) => ({
+          title: doc.title,
+        }))
+      );
+      setInvoiceList(newUsers);
+    } catch (error) {
+      console.error("There was an error while fetching the documents:", error);
+    }
+  };
 
   useEffect(() => {
     if (count === 1) {
@@ -408,6 +280,9 @@ function App() {
         const userDoc = await db.getDoc("Lead", doc.name);
         if (userDoc.lead_name === e.target.value) {
           setParentfolder(doc.name);
+          setuserstate(doc.state1);
+          setusercountry(doc.country1);
+          setuserstreet(doc.street);
           try {
             const docs = await db.getDocList("File", {
               fields: ["name", "file_name"],
@@ -426,8 +301,6 @@ function App() {
                   ["file_name", "=", feildname],
                 ],
               });
-            } else {
-              initializeFolders(e);
             }
             if (foldlist.length > 0) {
               const mainFolders = await db.getDocList("File", {
@@ -505,8 +378,6 @@ function App() {
               );
 
               setFolders(allSubfolders);
-            } else {
-              initializeFolders();
             }
           } catch (error) {
             console.error("Error fetching folders:", error);
@@ -519,8 +390,9 @@ function App() {
   };
 
   const handleChange = async (e) => {
+    setInputValue(e.target.value);
     setUserManuallyChanged(true);
-    await setSelectedUser(e.target.value);
+    setSelectedUser(e.target.value);
     await callnewfolder(e);
   };
 
@@ -766,11 +638,15 @@ function App() {
     document.querySelector(".main").style.display = "none";
   };
   const createdoc = () => {
+    console.log(
+      document.querySelector("#folder").value,
+      "ehtrshf abjfifjdckhjew"
+    );
     db.createDoc("image printer", {
       title: "Test",
       select: document.querySelector("#size").value,
       flag: document.querySelector("#flags").value,
-      description: document.querySelector("#description").value,
+      folder: document.querySelector("#folder").value,
       lead_ref: parentfolder,
     })
       .then((doc) => {
@@ -889,6 +765,7 @@ function App() {
               <h1>Image Uploader</h1>
             </li>
             <li class="menu__item">{selectedUser}</li>
+            <li class="menu__item">{(userstreet, userstate)}</li>
             <li
               style={{
                 display: "flex",
@@ -901,7 +778,7 @@ function App() {
                 transitionDuration: ".25s",
               }}
             >
-              {selectedUser.length > 0 ? "Indore, India" : ""}
+              {usercountry}
             </li>
             {folders.map((folder, folderIndex) => (
               <li key={folder.id} className="singlefolders">
@@ -982,7 +859,21 @@ function App() {
                 transitionDuration: ".25s",
               }}
             >
-              {selectedUser.length > 0 ? "Indore, India" : ""}
+              {(userstreet, userstate)}
+            </li>
+            <li
+              style={{
+                display: "flex",
+                padding: "12px 24px",
+                color: "#333",
+                fontFamily: "sans-serif",
+                fontSize: "20px",
+                fontWeight: "600",
+                textDecoration: "none",
+                transitionDuration: ".25s",
+              }}
+            >
+              {usercountry}
             </li>
             {folders.map((folder, folderIndex) => (
               <li
@@ -1080,13 +971,13 @@ function App() {
               <option value="No Flag">No Flag</option>
             </select>
 
-            <label for="description" style={{ fontSize: "1.5em" }}>
+            <label for="folder" style={{ fontSize: "1.5em" }}>
               Folder
             </label>
 
-            <select id="description" style={{ width: "50%", height: "10%" }}>
-              <option value="1">Pre Folder List</option>
-              <option value="0">Post Folder List</option>
+            <select id="folder" style={{ width: "50%", height: "10%" }}>
+              <option value="Pre Install Folder">Pre Install Folder</option>
+              <option value="Post Install Folder">Post Install Folder</option>
             </select>
             <button
               style={{
@@ -1117,30 +1008,36 @@ function App() {
               list="datalistOptions"
               id="sdkfmkf"
               placeholder="Search search..."
-              value={selectedUser}
-              onChange={handleChange}
+              value={inputValue}
+              onChange={(e) => {
+                handleChange(e);
+              }}
             />
             <datalist id="datalistOptions">
               {invoiceList.length > 0 &&
                 invoiceList.map((invoice, index) => {
-                  return <option value={invoice}>{invoice}</option>;
+                  return (
+                    <option key={index} value={invoice.title}>
+                      {invoice.title}
+                    </option>
+                  );
                 })}
             </datalist>
-            <div className="feildtype">
-              <label htmlFor="feild">Folders</label>
-              <select
-                ref={fieldRef}
-                onChange={callfolder}
-                id="feild"
-                style={{ width: "30%", height: "30px", borderRadius: "10px" }}
-              >
-                {foldertype.map((folder, index) => (
-                  <option key={index} value={folder}>
-                    {folder}
-                  </option>
-                ))}
-              </select>
-            </div>
+          </div>
+          <div className="feildtype">
+            <label htmlFor="feild">Folders</label>
+            <select
+              ref={fieldRef}
+              onChange={callfolder}
+              id="feild"
+              style={{ width: "30%", height: "30px", borderRadius: "10px" }}
+            >
+              {foldertype.map((folder, index) => (
+                <option key={index} value={folder}>
+                  {folder}
+                </option>
+              ))}
+            </select>
           </div>
           <button
             className="addfolder"
