@@ -119,10 +119,115 @@ function App() {
     }
   }, [lead]);
 
-  const [selectedUser, setSelectedUser] = useState("");
+  const [selectedUser, setSelectedUser] = useState(firstName);
   const fieldRef = useRef(null);
   const [folderlist, setFolderList] = useState("");
   const [inputValue, setInputValue] = useState("");
+
+  const initializeFolders = async (e) => {
+    try {
+      let post_install_folder_list = [];
+      let pre_install_folder_list = [];
+
+      let data = [
+        [
+          "Roof Measurements",
+          [
+            ["Complete with all the measurements", ""],
+            ["Roof Obstructions", ""],
+            ["Tilts of every plane", ""],
+          ],
+        ],
+        [
+          "Electrical",
+          [
+            ["MSP (wide-angle)", ""],
+            ["MSP Cover", ""],
+            ["MSP Main Breaker", ""],
+            ["MSP (close-up, cover off)", ""],
+            ["MSP Voltage", ""],
+            ["Water main grounding", ""],
+            ["Meter (close-up)", ""],
+            ["Meter (wide-angle)", ""],
+            ["Service Conduit", ""],
+            ["Is there a sub-panel?", ""],
+            ["Sub Panel", ""],
+            ["Electrical Red Flags", ""],
+            ["Ground rod/Clamp", ""],
+          ],
+        ],
+        [
+          "Rafters and Attic",
+          [
+            ["Size of Rafters", ""],
+            ["Spacing of Rafters", ""],
+            ["Attic Photos", ""],
+            ["Rafter/attic red flags", ""],
+            ["Working space in attic?", ""],
+          ],
+        ],
+        [
+          "Elevation",
+          [
+            ["Aurora Layout Picture", ""],
+            ["Front of Home", ""],
+            ["Right Side of Home", ""],
+            ["Left Side of Home", ""],
+            ["Rear of Home", ""],
+            ["Is there a detached structure?", ""],
+            ["Detached structure photos", ""],
+            ["Is there a sub-panel in the detached structure?", ""],
+            ["Distance of trench", ""],
+            ["Trench details", ""],
+            ["Additional exterior comments", ""],
+          ],
+        ],
+        [
+          "Roofing Material",
+          [
+            ["Potential Shading Issues?", ""],
+            ["Layers of shingle", ""],
+            ["Shading Issues", ""],
+            ["Roof condition passes?", ""],
+            ["Roof red flags", ""],
+            ["Additional roof comments", ""],
+          ],
+        ],
+        ["Miscellaneous Photos", [["Miscellaneous Photos", ""]]],
+        [
+          "Existing System",
+          [
+            ["Is there an existing system?", ""],
+            ["Module Type and Quantity", ""],
+            ["Inverter Type and Quantity", ""],
+          ],
+        ],
+      ];
+      const newFolders = data.map(([mainHeading, subheadings], mainIndex) => {
+        const folder = {
+          index: mainIndex + 1,
+          mainname: mainHeading,
+          minimized: false,
+          subfolders: subheadings.map(
+            ([subheading, value, custom_custom_description_], subIndex) => ({
+              id: mainIndex * 10 + subIndex + 1,
+              name: subheading,
+              value: value,
+              images: [],
+              custom_custom_description_: custom_custom_description_,
+            })
+          ),
+        };
+        return folder;
+      });
+      setFolders(newFolders);
+    } catch (error) {
+      console.error("Error initializing folders:", error);
+    }
+  };
+  useEffect(() => {
+    initializeFolders();
+  }, [fieldRef.current?.value]);
 
   useEffect(() => {
     if (!userManuallyChanged && invoiceList.length > 0) {
@@ -158,6 +263,8 @@ function App() {
             ["file_name", "=", feildname],
           ],
         });
+      } else {
+        initializeFolders();
       }
       if (foldlist.length > 0) {
         const mainFolders = await db.getDocList("File", {
@@ -184,8 +291,9 @@ function App() {
                 ["is_folder", "=", 1],
               ],
             });
-            console.log(mainFolder, "mainfolderrrrr");
+
             let totalImageCount = 0;
+
             const subfolderImages = await Promise.all(
               subFolders.map(async (subFolder) => {
                 const images = await db.getDocList("File", {
@@ -204,6 +312,7 @@ function App() {
                     ],
                   ],
                 });
+
                 const imageList = images.map((img) => ({
                   src: `${siteurl}${img.file_url}`,
                   name: img.file_name,
@@ -233,6 +342,8 @@ function App() {
         );
 
         setFolders(allSubfolders);
+      } else {
+        initializeFolders();
       }
     } catch (error) {
       console.error("Error fetching folders:", error);
@@ -271,6 +382,7 @@ function App() {
 
   const callnewfolder = async (e) => {
     let foldlist = [];
+    console.log(e.target.value);
     const feildname = fieldRef.current.value;
     setFolderList(feildname);
     try {
@@ -280,9 +392,6 @@ function App() {
         const userDoc = await db.getDoc("Lead", doc.name);
         if (userDoc.lead_name === e.target.value) {
           setParentfolder(doc.name);
-          setuserstate(doc.state1);
-          setusercountry(doc.country1);
-          setuserstreet(doc.street);
           try {
             const docs = await db.getDocList("File", {
               fields: ["name", "file_name"],
@@ -301,6 +410,8 @@ function App() {
                   ["file_name", "=", feildname],
                 ],
               });
+            } else {
+              initializeFolders(e);
             }
             if (foldlist.length > 0) {
               const mainFolders = await db.getDocList("File", {
@@ -378,6 +489,8 @@ function App() {
               );
 
               setFolders(allSubfolders);
+            } else {
+              initializeFolders();
             }
           } catch (error) {
             console.error("Error fetching folders:", error);
@@ -446,105 +559,135 @@ function App() {
     event
   ) => {
     setLoading(true);
+    console.log(subfoldername);
     const files = Array.from(event.target.files);
     const imageObjects = files.map((file) => ({
       src: URL.createObjectURL(file),
       name: file.name,
     }));
-
-    const updatedSubfolders = [...folders[folderIndex].subfolders];
-    updatedSubfolders[subfolderIndex] = {
-      ...updatedSubfolders[subfolderIndex],
-      images: [...updatedSubfolders[subfolderIndex].images, ...imageObjects],
-    };
-
-    const updatedFolder = {
-      ...folders[folderIndex],
-      subfolders: updatedSubfolders,
-    };
-    const updatedFolders = [...folders];
-    updatedFolders[folderIndex] = updatedFolder;
-
+    let updatedSubfolder;
+    const updatedFolders = folders.map((folder, fIndex) => {
+      if (fIndex === folderIndex) {
+        const updatedSubfolders = folder.subfolders.map((subfolder, sIndex) => {
+          if (sIndex === subfolderIndex) {
+            updatedSubfolder = {
+              ...subfolder,
+              images: [...subfolder.images, ...imageObjects],
+            };
+            return updatedSubfolder;
+          }
+          return subfolder;
+        });
+        return { ...folder, subfolders: updatedSubfolders };
+      }
+      return folder;
+    });
     setFolders(updatedFolders);
-    await createSubfolder(
-      folders[folderIndex].mainname,
-      updatedSubfolders[subfolderIndex]
-    );
+    if (updatedSubfolder) {
+      await createfolders(updatedSubfolder);
+      console.log("Updated Subfolder:", updatedSubfolder);
+    } else {
+      console.error("Updated subfolder not found.");
+    }
+
     setLoading(false);
   };
-
-  const toggleFlag = async (folderIndex, subfolderIndex, imageIndex, event) => {
+  const toggleFlag = async (
+    folderIndex,
+    subfolderIndex,
+    imageIndex,
+    subfoldername,
+    event
+  ) => {
     event.stopPropagation();
     setLoading(true);
 
-    const updatedSubfolders = [...folders[folderIndex].subfolders];
-    const updatedImages = [...updatedSubfolders[subfolderIndex].images];
-    updatedImages[imageIndex].flag = !updatedImages[imageIndex].flag;
-
-    updatedSubfolders[subfolderIndex] = {
-      ...updatedSubfolders[subfolderIndex],
-      images: updatedImages,
-    };
-
-    const updatedFolder = {
-      ...folders[folderIndex],
-      subfolders: updatedSubfolders,
-    };
-    const updatedFolders = [...folders];
-    updatedFolders[folderIndex] = updatedFolder;
+    const updatedFolders = folders.map((folder, fIndex) => {
+      if (fIndex === folderIndex) {
+        const updatedSubfolders = folder.subfolders.map((subfolder, sIndex) => {
+          if (sIndex === subfolderIndex) {
+            if (subfolder.name === subfoldername) {
+              // Check if this is the subfolder that changed
+              const updatedImages = subfolder.images.map((image, iIndex) => {
+                if (iIndex === imageIndex) {
+                  const newFlagValue = !image.flag;
+                  return { ...image, flag: newFlagValue };
+                }
+                return image;
+              });
+              return { ...subfolder, images: updatedImages };
+            }
+          }
+          return subfolder;
+        });
+        return { ...folder, subfolders: updatedSubfolders };
+      }
+      return folder;
+    });
 
     setFolders(updatedFolders);
 
-    // Only send the specific subfolder with changes
-    await createSubfolder(
-      folders[folderIndex].mainname,
-      updatedSubfolders[subfolderIndex]
+    const updatedSubfolder = updatedFolders[folderIndex].subfolders.find(
+      (subfolder) => subfolder.name === subfoldername
     );
+    if (updatedSubfolder) {
+      await createfolders(updatedSubfolder);
+      console.log("Updated Subfolder:", updatedSubfolder);
+    } else {
+      console.error(`Subfolder '${subfoldername}' not found.`);
+    }
+
     setLoading(false);
   };
 
   const handleEditImage = async (
     folderIndex,
     subfolderIndex,
+    subfoldername,
     imageIndex,
     event
   ) => {
     event.stopPropagation();
     setLoading(true);
 
-    const updatedSubfolders = [...folders[folderIndex].subfolders];
-    const updatedImages = updatedSubfolders[subfolderIndex].images.filter(
-      (_, iIndex) => iIndex !== imageIndex
-    );
-    const deletedImage = updatedSubfolders[subfolderIndex].images[imageIndex];
-
-    updatedSubfolders[subfolderIndex] = {
-      ...updatedSubfolders[subfolderIndex],
-      images: updatedImages,
-    };
-
-    const updatedFolder = {
-      ...folders[folderIndex],
-      subfolders: updatedSubfolders,
-    };
-    const updatedFolders = [...folders];
-    updatedFolders[folderIndex] = updatedFolder;
+    const updatedFolders = folders.map((folder, fIndex) => {
+      if (fIndex === folderIndex) {
+        const updatedSubfolders = folder.subfolders.map((subfolder, sIndex) => {
+          if (sIndex === subfolderIndex) {
+            if (subfolder.name === subfoldername) {
+              const updatedImages = subfolder.images.filter(
+                (_, iIndex) => iIndex !== imageIndex
+              );
+              const deletedImage = subfolder.images[imageIndex];
+              if (deletedImage.id) {
+                deleteImageFromBackend(
+                  folder.mainname,
+                  subfolder.name,
+                  deletedImage.id
+                );
+              }
+              return { ...subfolder, images: updatedImages };
+            }
+          }
+          return subfolder;
+        });
+        return { ...folder, subfolders: updatedSubfolders };
+      }
+      return folder;
+    });
 
     setFolders(updatedFolders);
 
-    // Only send the specific subfolder with changes
-    await createSubfolder(
-      folders[folderIndex].mainname,
-      updatedSubfolders[subfolderIndex]
+    const updatedSubfolder = updatedFolders[folderIndex].subfolders.find(
+      (subfolder) => subfolder.name === subfoldername
     );
-
-    if (deletedImage.id) {
-      await deleteImageFromBackend(
-        folders[folderIndex].mainname,
-        updatedSubfolders[subfolderIndex].name,
-        deletedImage.id
-      );
+    if (updatedSubfolder) {
+      await createfolders(updatedSubfolder);
+      console.log("Updated Subfolder:", updatedSubfolder);
+    } else {
+      console.error(`Subfolder '${subfoldername}' not found.`);
     }
+
     setLoading(false);
   };
 
@@ -563,20 +706,14 @@ function App() {
 
   const [loading, setLoading] = useState(false);
 
-  const createSubfolder = async (mainFolderName, subfolder) => {
+  const createfolders = async (folders) => {
     const feildname = fieldRef.current ? fieldRef.current.value : "";
-    console.log(subfolder, "its my subfolder");
+    console.log(feildname, "feildname");
+    console.log(folders, "this is tyhe ashdasjkiuf");
     try {
-      const subfolderName = subfolder.name;
       const existingImagesInSubFolder = await db.getDocList("File", {
         fields: ["name", "file_name", "flag", "custom_custom_description_"],
-        filters: [
-          [
-            "folder",
-            "=",
-            `Home/${parentfolder}/${feildname}/${mainFolderName}/${subfolderName}`,
-          ],
-        ],
+        filters: [["folder", "=", `${folders.id}`]],
       });
 
       const existingImageNames = existingImagesInSubFolder.map(
@@ -584,7 +721,7 @@ function App() {
       );
 
       for (const existingImage of existingImagesInSubFolder) {
-        const correspondingNewImage = subfolder.images.find(
+        const correspondingNewImage = folders.images.find(
           (img) => img.name === existingImage.file_name
         );
         if (correspondingNewImage) {
@@ -596,7 +733,7 @@ function App() {
         }
       }
 
-      const newImages = subfolder.images.filter(
+      const newImages = folders.images.filter(
         (image) => !existingImageNames.includes(image.name)
       );
 
@@ -617,7 +754,7 @@ function App() {
       const fileArgs = {
         isPrivate: true,
         flag: true,
-        folder: `Home/${parentfolder}/${feildname}/${mainFolderName}/${subfolderName}`,
+        folder: `${folders.id}`,
         doctype: "User",
         docname: "Administrator",
         fieldname: "image",
@@ -638,10 +775,6 @@ function App() {
     document.querySelector(".main").style.display = "none";
   };
   const createdoc = () => {
-    console.log(
-      document.querySelector("#folder").value,
-      "ehtrshf abjfifjdckhjew"
-    );
     db.createDoc("image printer", {
       title: "Test",
       select: document.querySelector("#size").value,
@@ -1052,6 +1185,11 @@ function App() {
                 <p>Updating...</p>
               </div>
             )}
+            {!folders.length && ( // Show loader until folders are populated
+              <div className="loading-overlay">
+                <p>Getting folders...</p>
+              </div>
+            )}
             {folders.map((folder, folderIndex) => (
               <div
                 key={folder.id}
@@ -1191,6 +1329,7 @@ function App() {
                               toggleFlag(
                                 folderIndex,
                                 subfolderIndex,
+                                subfolder.name,
                                 imageIndex,
                                 event
                               )
@@ -1222,6 +1361,7 @@ function App() {
                               handleEditImage(
                                 folderIndex,
                                 subfolderIndex,
+                                subfolder.name,
                                 imageIndex,
                                 event
                               )

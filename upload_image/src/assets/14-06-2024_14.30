@@ -679,8 +679,6 @@ function App() {
 
   const createfolders = async (folders) => {
     const feildname = fieldRef.current ? fieldRef.current.value : "";
-    console.log(feildname, "feildname");
-
     try {
       for (const folder of folders) {
         const mainFolderName = folder.mainname;
