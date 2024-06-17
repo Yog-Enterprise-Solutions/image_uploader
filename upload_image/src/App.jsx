@@ -42,6 +42,7 @@ function App() {
   ]);
   const [invoiceList, setInvoiceList] = useState([]);
   const [userstate, setuserstate] = useState("");
+  const [newUser, setnewUser] = useState("");
   const [usercountry, setusercountry] = useState("");
   const [userstreet, setuserstreet] = useState("");
   useEffect(() => {
@@ -122,7 +123,9 @@ function App() {
   const [selectedUser, setSelectedUser] = useState(firstName);
   const fieldRef = useRef(null);
   const [folderlist, setFolderList] = useState("");
-  const [inputValue, setInputValue] = useState("");
+  const [inputValue, setInputValue] = useState(
+    firstName.length > 0 ? firstName : ""
+  );
 
   const initializeFolders = async (e) => {
     try {
@@ -244,7 +247,6 @@ function App() {
     let foldlist = [];
     const feildname = fieldRef.current.value;
     setFolderList(feildname);
-    console.log(feildname);
     try {
       const docs = await db.getDocList("File", {
         fields: ["name", "file_name"],
@@ -255,6 +257,12 @@ function App() {
         ],
       });
       if (docs.length > 0) {
+        console.log(docs, "itrs asdnjskadfn");
+        let userdetails = await db.getDoc("Lead", docs[0].file_name);
+        setnewUser(userdetails.title);
+        setuserstreet(userdetails.street);
+        setuserstate(userdetails.state1);
+        setusercountry(userdetails.country1);
         foldlist = await db.getDocList("File", {
           fields: ["name", "file_name"],
           filters: [
@@ -362,6 +370,7 @@ function App() {
       let newUsers = [];
       const docs = await db.getDocList("Lead", {
         fields: ["title", "name"],
+        limit: 10000,
       });
       newUsers.push(
         ...docs.map((doc) => ({
@@ -391,7 +400,11 @@ function App() {
       for (const doc of docs) {
         const userDoc = await db.getDoc("Lead", doc.name);
         if (userDoc.lead_name === e.target.value) {
-          setParentfolder(doc.name);
+          setParentfolder(userDoc.name);
+          setnewUser(userDoc.title);
+          setuserstreet(userDoc.street);
+          setuserstate(userDoc.state1);
+          setusercountry(userDoc.country1);
           try {
             const docs = await db.getDocList("File", {
               fields: ["name", "file_name"],
@@ -897,8 +910,8 @@ function App() {
             <li>
               <h1>Image Uploader</h1>
             </li>
-            <li class="menu__item">{selectedUser}</li>
-            <li class="menu__item">{(userstreet, userstate)}</li>
+            <li class="menu__item">{newUser}</li>
+            <li class="menu__item">{`${userstreet} ${userstate}`}</li>
             <li
               style={{
                 display: "flex",
@@ -978,7 +991,7 @@ function App() {
                 transitionDuration: ".25s",
               }}
             >
-              {selectedUser}
+              {newUser}
             </li>
             <li
               style={{
@@ -992,7 +1005,7 @@ function App() {
                 transitionDuration: ".25s",
               }}
             >
-              {(userstreet, userstate)}
+              {`${userstreet} ${userstate}`}
             </li>
             <li
               style={{
