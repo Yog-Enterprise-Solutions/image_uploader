@@ -260,9 +260,18 @@ function App() {
         console.log(docs, "itrs asdnjskadfn");
         let userdetails = await db.getDoc("Lead", docs[0].file_name);
         setnewUser(userdetails.title);
-        setuserstreet(userdetails.street);
-        setuserstate(userdetails.state1);
-        setusercountry(userdetails.country1);
+
+        userdetails.street.legnt > 0
+        ? setuserstreet("")
+        : setuserstreet(userdetails.street);
+
+        userdetails.state1.legnt > 0
+        ? setuserstate("")
+        : setuserstate(userdetails.state1);
+
+        userdetails.country1.legnt > 0
+        ? setusercountry("")
+        : setusercountry(userdetails.country1);
         foldlist = await db.getDocList("File", {
           fields: ["name", "file_name"],
           filters: [
@@ -402,9 +411,17 @@ function App() {
         if (userDoc.lead_name === e.target.value) {
           setParentfolder(userDoc.name);
           setnewUser(userDoc.title);
-          setuserstreet(userDoc.street);
-          setuserstate(userDoc.state1);
-          setusercountry(userDoc.country1);
+          userDoc.street.legnt > 0
+            ? setuserstreet("")
+            : setuserstreet(userDoc.street);
+
+          userDoc.state1.legnt > 0
+            ? setuserstate("")
+            : setuserstate(userDoc.state1);
+
+          userDoc.country1.legnt > 0
+            ? setusercountry("")
+            : setusercountry(userDoc.country1);
           try {
             const docs = await db.getDocList("File", {
               fields: ["name", "file_name"],
@@ -605,6 +622,7 @@ function App() {
 
     setLoading(false);
   };
+
   const toggleFlag = async (
     folderIndex,
     subfolderIndex,
@@ -614,13 +632,11 @@ function App() {
   ) => {
     event.stopPropagation();
     setLoading(true);
-
     const updatedFolders = folders.map((folder, fIndex) => {
       if (fIndex === folderIndex) {
         const updatedSubfolders = folder.subfolders.map((subfolder, sIndex) => {
           if (sIndex === subfolderIndex) {
             if (subfolder.name === subfoldername) {
-              // Check if this is the subfolder that changed
               const updatedImages = subfolder.images.map((image, iIndex) => {
                 if (iIndex === imageIndex) {
                   const newFlagValue = !image.flag;
@@ -637,19 +653,16 @@ function App() {
       }
       return folder;
     });
-
     setFolders(updatedFolders);
-
     const updatedSubfolder = updatedFolders[folderIndex].subfolders.find(
       (subfolder) => subfolder.name === subfoldername
     );
     if (updatedSubfolder) {
       await createfolders(updatedSubfolder);
-      console.log("Updated Subfolder:", updatedSubfolder);
+      console.log("Updated Subfoldesssssr:", updatedSubfolder);
     } else {
       console.error(`Subfolder '${subfoldername}' not found.`);
     }
-
     setLoading(false);
   };
 
@@ -910,15 +923,14 @@ function App() {
             <li>
               <h1>Image Uploader</h1>
             </li>
-            <li class="menu__item">{newUser}</li>
+            <li class="username">{newUser}</li>
             <li class="menu__item">{`${userstreet} ${userstate}`}</li>
             <li
               style={{
                 display: "flex",
-                padding: "12px 24px",
                 color: "#333",
                 fontFamily: "sans-serif",
-                fontSize: "20px",
+                fontSize: "13px",
                 fontWeight: "600",
                 textDecoration: "none",
                 transitionDuration: ".25s",
@@ -939,11 +951,11 @@ function App() {
                 >
                   <h2
                     className="folder-heading"
-                    style={{ color: "black", fontSize: "1.5em" }}
+                    style={{ color: "black", fontSize: "1em" }}
                   >
                     {folder.mainname}
                   </h2>
-                  <p style={{ fontSize: "1.5em" }}>{folder.imageCount}</p>
+                  <p style={{ fontSize: "1em" }}>{folder.imageCount}</p>
                 </a>
               </li>
             ))}
@@ -982,10 +994,9 @@ function App() {
             <li
               style={{
                 display: "flex",
-                padding: "12px 24px",
                 color: "#333",
                 fontFamily: "sans-serif",
-                fontSize: "20px",
+                fontSize: "15px",
                 fontWeight: "600",
                 textDecoration: "none",
                 transitionDuration: ".25s",
@@ -996,10 +1007,9 @@ function App() {
             <li
               style={{
                 display: "flex",
-                padding: "12px 24px",
                 color: "#333",
                 fontFamily: "sans-serif",
-                fontSize: "20px",
+                fontSize: "13px",
                 fontWeight: "600",
                 textDecoration: "none",
                 transitionDuration: ".25s",
@@ -1010,13 +1020,13 @@ function App() {
             <li
               style={{
                 display: "flex",
-                padding: "12px 24px",
                 color: "#333",
                 fontFamily: "sans-serif",
-                fontSize: "20px",
+                fontSize: "13px",
                 fontWeight: "600",
                 textDecoration: "none",
                 transitionDuration: ".25s",
+                marginBottom: "10px",
               }}
             >
               {usercountry}
@@ -1038,11 +1048,11 @@ function App() {
                 >
                   <h2
                     className="folder-heading"
-                    style={{ color: "black", fontSize: "1.5em" }}
+                    style={{ color: "black", fontSize: "1em" }}
                   >
                     {folder.mainname}
                   </h2>
-                  <p style={{ fontSize: "1.5em" }}>{folder.imageCount}</p>
+                  <p style={{ fontSize: "1em" }}>{folder.imageCount}</p>
                 </a>
               </li>
             ))}
@@ -1252,7 +1262,7 @@ function App() {
                           readOnly
                           value={subfolder.name}
                           className="fixednames"
-                          style={{ color: "#0039ff" }}
+                          style={{ color: "#0039ff", fontSize: "1em" }}
                         />
                         <button
                           onClick={() =>
@@ -1342,8 +1352,8 @@ function App() {
                               toggleFlag(
                                 folderIndex,
                                 subfolderIndex,
-                                subfolder.name,
                                 imageIndex,
+                                subfolder.name,
                                 event
                               )
                             }
