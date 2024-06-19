@@ -319,13 +319,7 @@ function App() {
             const subfolderImages = await Promise.all(
               subFolders.map(async (subFolder) => {
                 const images = await db.getDocList("File", {
-                  fields: [
-                    "name",
-                    "file_name",
-                    "custom_custom_description_",
-                    "file_url",
-                    "flag",
-                  ],
+                  fields: ["name", "file_name", "file_url", "flag"],
                   filters: [
                     [
                       "folder",
@@ -334,7 +328,7 @@ function App() {
                     ],
                   ],
                 });
-
+                console.log(images);
                 const imageList = images.map((img) => ({
                   src: `${siteurl}${img.file_url}`,
                   name: img.file_name,
@@ -816,7 +810,6 @@ function App() {
       });
 
       const fileArgs = {
-        isPrivate: true,
         flag: true,
         folder: `${folders.id}`,
         doctype: "User",
