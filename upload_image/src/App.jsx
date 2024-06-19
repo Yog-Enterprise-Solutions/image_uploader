@@ -46,6 +46,7 @@ function App() {
   const [invoiceList, setInvoiceList] = useState([]);
   const [userstate, setuserstate] = useState("");
   const [newUser, setnewUser] = useState("");
+  const [foldername, setfoldername] = useState("");
   const [usercountry, setusercountry] = useState("");
   const [userstreet, setuserstreet] = useState("");
   useEffect(() => {
@@ -244,12 +245,6 @@ function App() {
       setSelectedUser(defaultUser);
     }
   }, [invoiceList, firstName, userManuallyChanged]);
-
-  // if (getingdata === true) {
-
-  // } else {
-  //   document.querySelector(".folders-container").style.display = "block";
-  // }
 
   const callfolder = async () => {
     setgetingdata(true);
@@ -1376,6 +1371,7 @@ function App() {
                               setModalVisible(true);
                               setCurrentFolderIndex(folderIndex);
                               setCurrentSubFolderIndex(subfolderIndex);
+                              setfoldername(subfolder.name);
                             }}
                             onError={(e) => {
                               e.target.src =
@@ -1490,12 +1486,13 @@ function App() {
               onPrev={showPrevImage}
               onThumbnailClick={handleThumbnailClick}
               imagename={selectedName}
-              toggleFlagInModal={(imageIndex, event) => {
-                event.stopPropagation();
+              foldersname={foldername}
+              toggleFlagInModal={(imageIndex, foldername, event) => {
                 toggleFlag(
                   currentFolderIndex,
                   currentSubFolderIndex,
                   imageIndex,
+                  foldername,
                   event
                 );
               }}
@@ -1515,6 +1512,7 @@ function Modal({
   onPrev,
   onThumbnailClick,
   imagename,
+  foldersname,
   toggleFlagInModal,
 }) {
   const [localImages, setLocalImages] = useState(images);
@@ -1525,7 +1523,7 @@ function Modal({
 
   const handleFlagClick = (index, event) => {
     event.stopPropagation();
-    toggleFlagInModal(index, event);
+    toggleFlagInModal(index, foldersname, event);
     setLocalImages((prevImages) => {
       const updatedImages = [...prevImages];
       updatedImages[index].flag = !updatedImages[index].flag;
