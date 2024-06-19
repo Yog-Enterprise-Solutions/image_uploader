@@ -1163,6 +1163,7 @@ function App() {
             </label>
 
             <select id="folder" style={{ width: "50%", height: "10%" }}>
+              <option value="All">All</option>
               <option value="Pre Install Folder">Pre Install Folder</option>
               <option value="Post Install Folder">Post Install Folder</option>
             </select>
