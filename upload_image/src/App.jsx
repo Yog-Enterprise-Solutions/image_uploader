@@ -17,6 +17,8 @@ function App() {
   // };
 
   const frappeUrl = "https://yash.tranqwality.com/";
+  // const frappeUrl = "https://erp.solarblocks.us/";
+
   const siteurl = frappeUrl;
   const frappe = new FrappeApp(siteurl);
   const auth = frappe.auth();
@@ -37,9 +39,10 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userManuallyChanged, setUserManuallyChanged] = useState(false);
   const [foldertype, setfoldertype] = useState([
-    "Pre Install Folder",
     "Post Install Folder",
+    "Pre Install Folder",
   ]);
+  const [getingdata, setgetingdata] = useState(false);
   const [invoiceList, setInvoiceList] = useState([]);
   const [userstate, setuserstate] = useState("");
   const [newUser, setnewUser] = useState("");
@@ -119,8 +122,8 @@ function App() {
       setParentfolder(lead);
     }
   }, [lead]);
-
   const [selectedUser, setSelectedUser] = useState(firstName);
+  const [selectedFolderType, setSelectedFolderType] = useState(typeoffolder);
   const fieldRef = useRef(null);
   const [folderlist, setFolderList] = useState("");
   const [inputValue, setInputValue] = useState(
@@ -239,11 +242,18 @@ function App() {
         invoiceList[0].title ||
         " ";
       setSelectedUser(defaultUser);
-      console.log(defaultUser);
     }
   }, [invoiceList, firstName, userManuallyChanged]);
 
+  // if (getingdata === true) {
+
+  // } else {
+  //   document.querySelector(".folders-container").style.display = "block";
+  // }
+
   const callfolder = async () => {
+    setgetingdata(true);
+    document.querySelector(".folders-container").style.display = "none";
     let foldlist = [];
     const feildname = fieldRef.current.value;
     setFolderList(feildname);
@@ -257,21 +267,21 @@ function App() {
         ],
       });
       if (docs.length > 0) {
-        console.log(docs, "itrs asdnjskadfn");
+        // console.log(docs, "itrs asdnjskadfn");
         let userdetails = await db.getDoc("Lead", docs[0].file_name);
         setnewUser(userdetails.title);
 
-        userdetails.street.legnt > 0
-        ? setuserstreet("")
-        : setuserstreet(userdetails.street);
+        userdetails.custom_street.length > 0
+          ? setuserstreet("")
+          : setuserstreet(userdetails.custom_street);
 
-        userdetails.state1.legnt > 0
-        ? setuserstate("")
-        : setuserstate(userdetails.state1);
+        userdetails.custom_state1.length > 0
+          ? setuserstate("")
+          : setuserstate(userdetails.custom_state1);
 
-        userdetails.country1.legnt > 0
-        ? setusercountry("")
-        : setusercountry(userdetails.country1);
+        userdetails.custom_country1.length > 0
+          ? setusercountry("")
+          : setusercountry(userdetails.custom_country1);
         foldlist = await db.getDocList("File", {
           fields: ["name", "file_name"],
           filters: [
@@ -360,12 +370,13 @@ function App() {
 
         setFolders(allSubfolders);
       } else {
-        initializeFolders();
       }
     } catch (error) {
       console.error("Error fetching folders:", error);
     }
     setCount(1);
+    setgetingdata(false);
+    document.querySelector(".folders-container").style.display = "block";
   };
 
   useEffect(() => {
@@ -381,9 +392,11 @@ function App() {
         fields: ["title", "name"],
         limit: 10000,
       });
+      console.log(docs);
       newUsers.push(
         ...docs.map((doc) => ({
           title: doc.title,
+          name: doc.name,
         }))
       );
       setInvoiceList(newUsers);
@@ -396,147 +409,160 @@ function App() {
     if (count === 1) {
       callUser();
     }
+    ("");
   }, [count]);
 
   const callnewfolder = async (e) => {
+    setgetingdata(true);
+    document.querySelector(".folders-container").style.display = "none";
     let foldlist = [];
-    console.log(e.target.value);
     const feildname = fieldRef.current.value;
     setFolderList(feildname);
+
     try {
-      const docs = await db.getDocList("Lead");
       let newUsers = [];
-      for (const doc of docs) {
-        const userDoc = await db.getDoc("Lead", doc.name);
-        if (userDoc.lead_name === e.target.value) {
-          setParentfolder(userDoc.name);
-          setnewUser(userDoc.title);
-          userDoc.street.legnt > 0
-            ? setuserstreet("")
-            : setuserstreet(userDoc.street);
+      const userDoc = await db.getDoc("Lead", e.name);
+      if (userDoc.lead_name === e.title) {
+        setParentfolder(userDoc.name);
+        setnewUser(userDoc.title);
+        userDoc.custom_street.length > 0
+          ? setuserstreet("")
+          : setuserstreet(userDoc.custom_street);
 
-          userDoc.state1.legnt > 0
-            ? setuserstate("")
-            : setuserstate(userDoc.state1);
+        userDoc.custom_state1.length > 0
+          ? setuserstate("")
+          : setuserstate(userDoc.custom_state1);
 
-          userDoc.country1.legnt > 0
-            ? setusercountry("")
-            : setusercountry(userDoc.country1);
-          try {
-            const docs = await db.getDocList("File", {
+        userDoc.custom_country1.length > 0
+          ? setusercountry("")
+          : setusercountry(userDoc.custom_country1);
+        try {
+          const docs = await db.getDocList("File", {
+            fields: ["name", "file_name"],
+            filters: [
+              ["folder", "=", "Home"],
+              ["is_folder", "=", 1],
+              ["file_name", "=", e.name],
+            ],
+          });
+          if (docs.length > 0) {
+            foldlist = await db.getDocList("File", {
               fields: ["name", "file_name"],
               filters: [
-                ["folder", "=", "Home"],
+                ["folder", "=", `Home/${e.name}`],
                 ["is_folder", "=", 1],
-                ["file_name", "=", doc.name],
+                ["file_name", "=", feildname],
               ],
             });
-            if (docs.length > 0) {
-              foldlist = await db.getDocList("File", {
-                fields: ["name", "file_name"],
-                filters: [
-                  ["folder", "=", `Home/${doc.name}`],
-                  ["is_folder", "=", 1],
-                  ["file_name", "=", feildname],
-                ],
-              });
-            } else {
-              initializeFolders(e);
-            }
-            if (foldlist.length > 0) {
-              const mainFolders = await db.getDocList("File", {
-                fields: ["name", "file_name", "idx"],
-                filters: [
-                  ["folder", "=", `Home/${doc.name}/${feildname}`],
-                  ["is_folder", "=", 1],
-                ],
-                orderBy: {
-                  field: "creation",
-                  order: "asc",
-                },
-              });
-              const allSubfolders = await Promise.all(
-                mainFolders.map(async (mainFolder) => {
-                  const subFolders = await db.getDocList("File", {
-                    fields: ["name", "file_name", "custom_custom_description_"],
-                    filters: [
-                      [
-                        "folder",
-                        "=",
-                        `Home/${doc.name}/${feildname}/${mainFolder.file_name}`,
-                      ],
-                      ["is_folder", "=", 1],
-                    ],
-                  });
-
-                  let totalImageCount = 0;
-
-                  const subfolderImages = await Promise.all(
-                    subFolders.map(async (subFolder) => {
-                      const images = await db.getDocList("File", {
-                        fields: [
-                          "name",
-                          "file_name",
-                          "custom_custom_description_",
-                          "file_url",
-                          "flag",
-                        ],
-                        filters: [
-                          [
-                            "folder",
-                            "=",
-                            `Home/${doc.name}/${feildname}/${mainFolder.file_name}/${subFolder.file_name}`,
-                          ],
-                        ],
-                      });
-
-                      const imageList = images.map((img) => ({
-                        src: `${siteurl}${img.file_url}`,
-                        name: img.file_name,
-                        id: img.name,
-                        flag: img.flag || false,
-                      }));
-
-                      totalImageCount += imageList.length;
-
-                      return {
-                        id: subFolder.name,
-                        name: subFolder.file_name,
-                        images: imageList,
-                        minimized: false,
-                      };
-                    })
-                  );
-
-                  return {
-                    idx: mainFolder.idx,
-                    id: mainFolder.name,
-                    mainname: mainFolder.file_name,
-                    subfolders: subfolderImages,
-                    imageCount: totalImageCount,
-                  };
-                })
-              );
-
-              setFolders(allSubfolders);
-            } else {
-              initializeFolders();
-            }
-          } catch (error) {
-            console.error("Error fetching folders:", error);
+          } else {
+            initializeFolders(e);
           }
+          if (foldlist.length > 0) {
+            const mainFolders = await db.getDocList("File", {
+              fields: ["name", "file_name", "idx"],
+              filters: [
+                ["folder", "=", `Home/${e.name}/${feildname}`],
+                ["is_folder", "=", 1],
+              ],
+              orderBy: {
+                field: "creation",
+                order: "asc",
+              },
+            });
+            const allSubfolders = await Promise.all(
+              mainFolders.map(async (mainFolder) => {
+                const subFolders = await db.getDocList("File", {
+                  fields: ["name", "file_name", "custom_custom_description_"],
+                  filters: [
+                    [
+                      "folder",
+                      "=",
+                      `Home/${e.name}/${feildname}/${mainFolder.file_name}`,
+                    ],
+                    ["is_folder", "=", 1],
+                  ],
+                });
+
+                let totalImageCount = 0;
+
+                const subfolderImages = await Promise.all(
+                  subFolders.map(async (subFolder) => {
+                    const images = await db.getDocList("File", {
+                      fields: [
+                        "name",
+                        "file_name",
+                        "custom_custom_description_",
+                        "file_url",
+                        "flag",
+                      ],
+                      filters: [
+                        [
+                          "folder",
+                          "=",
+                          `Home/${e.name}/${feildname}/${mainFolder.file_name}/${subFolder.file_name}`,
+                        ],
+                      ],
+                    });
+
+                    const imageList = images.map((img) => ({
+                      src: `${siteurl}${img.file_url}`,
+                      name: img.file_name,
+                      id: img.name,
+                      flag: img.flag || false,
+                    }));
+
+                    totalImageCount += imageList.length;
+
+                    return {
+                      id: subFolder.name,
+                      name: subFolder.file_name,
+                      images: imageList,
+                      minimized: false,
+                    };
+                  })
+                );
+
+                return {
+                  idx: mainFolder.idx,
+                  id: mainFolder.name,
+                  mainname: mainFolder.file_name,
+                  subfolders: subfolderImages,
+                  imageCount: totalImageCount,
+                };
+              })
+            );
+
+            setFolders(allSubfolders);
+          } else {
+            initializeFolders();
+          }
+        } catch (error) {
+          console.error("Error fetching folders:", error);
         }
       }
     } catch (error) {
       console.error("There was an error while fetching the documents:", error);
     }
+    setgetingdata(false);
+    document.querySelector(".folders-container").style.display = "block";
+  };
+
+  const handleSelectChange = (event) => {
+    setSelectedFolderType(event.target.value);
+    callfolder();
   };
 
   const handleChange = async (e) => {
     setInputValue(e.target.value);
     setUserManuallyChanged(true);
     setSelectedUser(e.target.value);
-    await callnewfolder(e);
+    const selectedInvoice = invoiceList.find(
+      (invoice) => invoice.title === e.target.value
+    );
+    console.log(selectedInvoice, "selected invoice");
+    if (invoiceList.includes(selectedInvoice)) {
+      await callnewfolder(selectedInvoice);
+    }
   };
 
   const handleFolderClick = (folder, index) => {
@@ -608,7 +634,15 @@ function App() {
           }
           return subfolder;
         });
-        return { ...folder, subfolders: updatedSubfolders };
+        const newImageCount = updatedSubfolders.reduce(
+          (count, subfolder) => count + subfolder.images.length,
+          0
+        );
+        return {
+          ...folder,
+          subfolders: updatedSubfolders,
+          imageCount: newImageCount,
+        };
       }
       return folder;
     });
@@ -697,7 +731,16 @@ function App() {
           }
           return subfolder;
         });
-        return { ...folder, subfolders: updatedSubfolders };
+        // Update the imageCount here
+        const newImageCount = updatedSubfolders.reduce(
+          (count, subfolder) => count + subfolder.images.length,
+          0
+        );
+        return {
+          ...folder,
+          subfolders: updatedSubfolders,
+          imageCount: newImageCount,
+        };
       }
       return folder;
     });
@@ -1173,8 +1216,12 @@ function App() {
               {invoiceList.length > 0 &&
                 invoiceList.map((invoice, index) => {
                   return (
-                    <option key={index} value={invoice.title}>
-                      {invoice.title}
+                    <option
+                      key={index}
+                      value={invoice.title}
+                      className={invoice.name}
+                    >
+                      {invoice.name}
                     </option>
                   );
                 })}
@@ -1184,7 +1231,8 @@ function App() {
             <label htmlFor="feild">Folders</label>
             <select
               ref={fieldRef}
-              onChange={callfolder}
+              onChange={handleSelectChange}
+              defaultValue={selectedFolderType}
               id="feild"
               style={{ width: "30%", height: "30px", borderRadius: "10px" }}
             >
@@ -1202,15 +1250,23 @@ function App() {
           >
             Add Folder
           </button>
-          <div id="image-uploader-section" className="folders-container">
+          {getingdata && (
+            <div
+              style={{
+                marginTop: "200px",
+              }}
+            >
+              Getting Folders...
+            </div>
+          )}
+          <div
+            id="image-uploader-section"
+            className="folders-container"
+            style={{ display: "block" }}
+          >
             {loading && (
               <div className="loading-overlay">
                 <p>Updating...</p>
-              </div>
-            )}
-            {!folders.length && ( // Show loader until folders are populated
-              <div className="loading-overlay">
-                <p>Getting folders...</p>
               </div>
             )}
             {folders.map((folder, folderIndex) => (
