@@ -42,6 +42,13 @@ function App() {
     "Post Install Folder",
     "Pre Install Folder",
   ]);
+  const [status, setStatus] = useState([
+    "No started - Auto generated",
+    "In progress - Site assesor",
+    "On hold - Site Assessor",
+    "Assessment completed - Site Assessor",
+    "Site Visit Completed - Engineer",
+  ]);
   const [getingdata, setgetingdata] = useState(false);
   const [invoiceList, setInvoiceList] = useState([]);
   const [userstate, setuserstate] = useState("");
@@ -265,7 +272,6 @@ function App() {
         // console.log(docs, "itrs asdnjskadfn");
         let userdetails = await db.getDoc("Lead", docs[0].file_name);
         setnewUser(userdetails.title);
-
         userdetails.custom_street.length > 0
           ? setuserstreet("")
           : setuserstreet(userdetails.custom_street);
@@ -378,16 +384,20 @@ function App() {
     try {
       let newUsers = [];
       const docs = await db.getDocList("Lead", {
-        fields: ["title", "name"],
+        fields: ["title", "name", "street", "city1", "state1", "country1"],
         limit: 10000,
       });
       console.log(docs);
-      newUsers.push(
-        ...docs.map((doc) => ({
-          title: doc.title,
-          name: doc.name,
-        }))
-      );
+
+      newUsers = docs.map((doc) => ({
+        title: doc.title,
+        name: doc.name,
+        state: doc.street ? doc.street : "",
+        state1: doc.city1 ? doc.city1 : "",
+        state2: doc.state1 ? doc.state1 : "",
+        state3: doc.country1 ? doc.country1 : "",
+      }));
+
       setInvoiceList(newUsers);
     } catch (error) {
       console.error("There was an error while fetching the documents:", error);
@@ -537,8 +547,13 @@ function App() {
   };
 
   const handleSelectChange = (event) => {
-    setSelectedFolderType(event.target.value);
-    callfolder();
+    let status = event.target.value;
+    console.log(parentfolder, "parentfolder");
+    db.updateDoc("Lead", parentfolder, {
+      custom_final__status: status,
+    })
+      .then((doc) => console.log(doc))
+      .catch((error) => console.error(error));
   };
 
   const handleChange = async (e) => {
@@ -610,6 +625,7 @@ function App() {
       src: URL.createObjectURL(file),
       name: file.name,
     }));
+    console.log("image added", imageObjects);
     let updatedSubfolder;
     const updatedFolders = folders.map((folder, fIndex) => {
       if (fIndex === folderIndex) {
@@ -637,7 +653,7 @@ function App() {
     });
     setFolders(updatedFolders);
     if (updatedSubfolder) {
-      await createfolders(updatedSubfolder);
+      await createfolders(updatedSubfolder, folderIndex, subfolderIndex);
       console.log("Updated Subfolder:", updatedSubfolder);
     } else {
       console.error("Updated subfolder not found.");
@@ -681,8 +697,8 @@ function App() {
       (subfolder) => subfolder.name === subfoldername
     );
     if (updatedSubfolder) {
-      await createfolders(updatedSubfolder);
-      console.log("Updated Subfoldesssssr:", updatedSubfolder);
+      await createfolders(updatedSubfolder, folderIndex, subfolderIndex);
+      console.log("Updated Subfolder:", updatedSubfolder);
     } else {
       console.error(`Subfolder '${subfoldername}' not found.`);
     }
@@ -708,6 +724,7 @@ function App() {
                 (_, iIndex) => iIndex !== imageIndex
               );
               const deletedImage = subfolder.images[imageIndex];
+              console.log(deletedImage, "the image that we have deleted");
               if (deletedImage.id) {
                 deleteImageFromBackend(
                   folder.mainname,
@@ -740,7 +757,7 @@ function App() {
       (subfolder) => subfolder.name === subfoldername
     );
     if (updatedSubfolder) {
-      await createfolders(updatedSubfolder);
+      await createfolders(updatedSubfolder, folderIndex, subfolderIndex);
       console.log("Updated Subfolder:", updatedSubfolder);
     } else {
       console.error(`Subfolder '${subfoldername}' not found.`);
@@ -761,10 +778,9 @@ function App() {
       console.error(`Error deleting image ${imageId} from the backend:`, error);
     }
   };
-
   const [loading, setLoading] = useState(false);
 
-  const createfolders = async (folders) => {
+  const createfolders = async (folders, folderIndex, subfolderIndex) => {
     const feildname = fieldRef.current ? fieldRef.current.value : "";
     console.log(feildname, "feildname");
     console.log(folders, "this is tyhe ashdasjkiuf");
@@ -777,7 +793,6 @@ function App() {
       const existingImageNames = existingImagesInSubFolder.map(
         (img) => img.file_name
       );
-
       for (const existingImage of existingImagesInSubFolder) {
         const correspondingNewImage = folders.images.find(
           (img) => img.name === existingImage.file_name
@@ -788,6 +803,8 @@ function App() {
               flag: correspondingNewImage.flag,
             });
           }
+          // Assign the existing image ID to the new image object
+          correspondingNewImage.id = existingImage.name;
         }
       }
 
@@ -818,10 +835,29 @@ function App() {
       };
 
       for (const image of images) {
-        await files.uploadFile(image, fileArgs, (completedBytes, totalBytes) =>
-          console.log(Math.round((completedBytes / totalBytes) * 100))
+        const response = await files.uploadFile(
+          image,
+          fileArgs,
+          (completedBytes, totalBytes) =>
+            console.log(Math.round((completedBytes / totalBytes) * 100))
         );
+        console.log(response.data.message.name);
+        const newImageId = response?.data?.message?.name;
+        if (newImageId) {
+          folders.images.forEach((img) => {
+            if (img.name === image.name) {
+              img.id = newImageId;
+            }
+          });
+        }
       }
+
+      // Update the state with new image IDs
+      setFolders((prevFolders) => {
+        const updatedFolders = [...prevFolders];
+        updatedFolders[folderIndex].subfolders[subfolderIndex] = folders;
+        return updatedFolders;
+      });
     } catch (error) {
       console.error("Error uploading images:", error);
     }
@@ -939,7 +975,6 @@ function App() {
           </div>
         </div>
       </div>
-      {/* {loading && <LoaderComponent />} */}
       <div
         id="allfeild"
         className="allfeild"
@@ -1210,7 +1245,10 @@ function App() {
                       value={invoice.title}
                       className={invoice.name}
                     >
-                      {invoice.name}
+                      {invoice.state +
+                        invoice.state1 +
+                        invoice.state2 +
+                        invoice.state3}
                     </option>
                   );
                 })}
@@ -1223,9 +1261,35 @@ function App() {
               onChange={handleSelectChange}
               defaultValue={selectedFolderType}
               id="feild"
-              style={{ width: "30%", height: "30px", borderRadius: "10px" }}
+              style={{
+                width: "30%",
+                height: "30px",
+                borderRadius: "10px",
+                marginLeft: "10px",
+              }}
             >
               {foldertype.map((folder, index) => (
+                <option key={index} value={folder}>
+                  {folder}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="statustype">
+            <label htmlFor="feild">Status</label>
+            <select
+              onChange={handleSelectChange}
+              id="feild"
+              style={{
+                width: "30%",
+                height: "30px",
+                borderRadius: "10px",
+                marginTop: "10px",
+                marginLeft: "10px",
+                marginBottom: "10px",
+              }}
+            >
+              {status.map((folder, index) => (
                 <option key={index} value={folder}>
                   {folder}
                 </option>
