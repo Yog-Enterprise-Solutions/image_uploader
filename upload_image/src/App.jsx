@@ -412,12 +412,12 @@ function App() {
   }, [count]);
 
   const callnewfolder = async (e) => {
+    console.log(e);
     setgetingdata(true);
     document.querySelector(".folders-container").style.display = "none";
     let foldlist = [];
     const feildname = fieldRef.current.value;
     setFolderList(feildname);
-
     try {
       let newUsers = [];
       const userDoc = await db.getDoc("Lead", e.name);
@@ -546,8 +546,9 @@ function App() {
     document.querySelector(".folders-container").style.display = "block";
   };
 
-  const handleSelectChange = (event) => {
+  const handleSelectChange1 = (event) => {
     let status = event.target.value;
+    console.log(status, "it's an status");
     console.log(parentfolder, "parentfolder");
     db.updateDoc("Lead", parentfolder, {
       custom_final__status: status,
@@ -1258,7 +1259,7 @@ function App() {
             <label htmlFor="feild">Folders</label>
             <select
               ref={fieldRef}
-              onChange={handleSelectChange}
+              onChange={callfolder}
               defaultValue={selectedFolderType}
               id="feild"
               style={{
@@ -1278,7 +1279,7 @@ function App() {
           <div className="statustype">
             <label htmlFor="feild">Status</label>
             <select
-              onChange={handleSelectChange}
+              onChange={handleSelectChange1}
               id="feild"
               style={{
                 width: "30%",
