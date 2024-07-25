@@ -16,8 +16,8 @@ function App() {
   //   return import.meta.env.VITE_SITE_NAME;
   // };
 
-  const frappeUrl = "https://yash.tranqwality.com/";
-  // const frappeUrl = "https://erp.solarblocks.us/";
+  // const frappeUrl = "https://yash.tranqwality.com/";
+  const frappeUrl = "https://erp.solarblocks.us/";
 
   const siteurl = frappeUrl;
   const frappe = new FrappeApp(siteurl);
@@ -138,111 +138,6 @@ function App() {
     firstName.length > 0 ? firstName : ""
   );
 
-  const initializeFolders = async (e) => {
-    try {
-      let post_install_folder_list = [];
-      let pre_install_folder_list = [];
-
-      let data = [
-        [
-          "Roof Measurements",
-          [
-            ["Complete with all the measurements", ""],
-            ["Roof Obstructions", ""],
-            ["Tilts of every plane", ""],
-          ],
-        ],
-        [
-          "Electrical",
-          [
-            ["MSP (wide-angle)", ""],
-            ["MSP Cover", ""],
-            ["MSP Main Breaker", ""],
-            ["MSP (close-up, cover off)", ""],
-            ["MSP Voltage", ""],
-            ["Water main grounding", ""],
-            ["Meter (close-up)", ""],
-            ["Meter (wide-angle)", ""],
-            ["Service Conduit", ""],
-            ["Is there a sub-panel?", ""],
-            ["Sub Panel", ""],
-            ["Electrical Red Flags", ""],
-            ["Ground rod/Clamp", ""],
-          ],
-        ],
-        [
-          "Rafters and Attic",
-          [
-            ["Size of Rafters", ""],
-            ["Spacing of Rafters", ""],
-            ["Attic Photos", ""],
-            ["Rafter/attic red flags", ""],
-            ["Working space in attic?", ""],
-          ],
-        ],
-        [
-          "Elevation",
-          [
-            ["Aurora Layout Picture", ""],
-            ["Front of Home", ""],
-            ["Right Side of Home", ""],
-            ["Left Side of Home", ""],
-            ["Rear of Home", ""],
-            ["Is there a detached structure?", ""],
-            ["Detached structure photos", ""],
-            ["Is there a sub-panel in the detached structure?", ""],
-            ["Distance of trench", ""],
-            ["Trench details", ""],
-            ["Additional exterior comments", ""],
-          ],
-        ],
-        [
-          "Roofing Material",
-          [
-            ["Potential Shading Issues?", ""],
-            ["Layers of shingle", ""],
-            ["Shading Issues", ""],
-            ["Roof condition passes?", ""],
-            ["Roof red flags", ""],
-            ["Additional roof comments", ""],
-          ],
-        ],
-        ["Miscellaneous Photos", [["Miscellaneous Photos", ""]]],
-        [
-          "Existing System",
-          [
-            ["Is there an existing system?", ""],
-            ["Module Type and Quantity", ""],
-            ["Inverter Type and Quantity", ""],
-          ],
-        ],
-      ];
-      const newFolders = data.map(([mainHeading, subheadings], mainIndex) => {
-        const folder = {
-          index: mainIndex + 1,
-          mainname: mainHeading,
-          minimized: false,
-          subfolders: subheadings.map(
-            ([subheading, value, custom_custom_description_], subIndex) => ({
-              id: mainIndex * 10 + subIndex + 1,
-              name: subheading,
-              value: value,
-              images: [],
-              custom_custom_description_: custom_custom_description_,
-            })
-          ),
-        };
-        return folder;
-      });
-      setFolders(newFolders);
-    } catch (error) {
-      console.error("Error initializing folders:", error);
-    }
-  };
-  useEffect(() => {
-    initializeFolders();
-  }, [fieldRef.current?.value]);
-
   useEffect(() => {
     if (!userManuallyChanged && invoiceList.length > 0) {
       const defaultUser =
@@ -254,6 +149,7 @@ function App() {
   }, [invoiceList, firstName, userManuallyChanged]);
 
   const callfolder = async () => {
+    console.log("callfolder run");
     setgetingdata(true);
     document.querySelector(".folders-container").style.display = "none";
     let foldlist = [];
@@ -269,20 +165,25 @@ function App() {
         ],
       });
       if (docs.length > 0) {
-        // console.log(docs, "itrs asdnjskadfn");
         let userdetails = await db.getDoc("Lead", docs[0].file_name);
         setnewUser(userdetails.title);
-        userdetails.custom_street.length > 0
-          ? setuserstreet("")
-          : setuserstreet(userdetails.custom_street);
+        if (userdetails.street) {
+          userdetails.street.length > 0
+            ? setuserstreet("")
+            : setuserstreet(userdetails.street);
+        }
 
-        userdetails.custom_state1.length > 0
-          ? setuserstate("")
-          : setuserstate(userdetails.custom_state1);
+        if (userdetails.state1) {
+          userdetails.state1.length > 0
+            ? setuserstate("")
+            : setuserstate(userdetails.state1);
+        }
 
-        userdetails.custom_country1.length > 0
-          ? setusercountry("")
-          : setusercountry(userdetails.custom_country1);
+        if (userdetails.country1) {
+          userdetails.country1.length > 0
+            ? setusercountry("")
+            : setusercountry(userdetails.country1);
+        }
         foldlist = await db.getDocList("File", {
           fields: ["name", "file_name"],
           filters: [
@@ -291,8 +192,6 @@ function App() {
             ["file_name", "=", feildname],
           ],
         });
-      } else {
-        initializeFolders();
       }
       if (foldlist.length > 0) {
         const mainFolders = await db.getDocList("File", {
@@ -334,7 +233,6 @@ function App() {
                     ],
                   ],
                 });
-                console.log(images);
                 const imageList = images.map((img) => ({
                   src: `${siteurl}${img.file_url}`,
                   name: img.file_name,
@@ -364,13 +262,14 @@ function App() {
         );
 
         setFolders(allSubfolders);
+        setgetingdata(false);
       } else {
       }
     } catch (error) {
       console.error("Error fetching folders:", error);
+      setgetingdata(false);
     }
     setCount(1);
-    setgetingdata(false);
     document.querySelector(".folders-container").style.display = "block";
   };
 
@@ -388,7 +287,6 @@ function App() {
         limit: 10000,
       });
       console.log(docs);
-
       newUsers = docs.map((doc) => ({
         title: doc.title,
         name: doc.name,
@@ -404,15 +302,35 @@ function App() {
     }
   };
 
-  useEffect(() => {
-    if (count === 1) {
-      callUser();
+  const fetchmydata = async (e) => {
+    try {
+      let newUsers = [];
+      const docs = await db
+        .getDocList("Lead", {
+          fields: ["title", "name", "street", "city1", "state1", "country1"],
+          limit: 10000,
+        })
+        .then((response) => response.json())
+        .then((json) => {
+          const filterdata = json.filter((user) => {
+            return user && user.title && user.title.toLowerCase().includes(e);
+          });
+          setInvoiceList(filterdata);
+        });
+    } catch (error) {
+      console.error("There was an error while fetching the documents:", error);
     }
-    ("");
-  }, [count]);
+  };
+
+  // useEffect(() => {
+  //   if (count === 1) {
+  //     callUser();
+  //   }
+  //   ("");
+  // }, [count]);
 
   const callnewfolder = async (e) => {
-    console.log(e);
+    console.log("callnewwfolder run");
     setgetingdata(true);
     document.querySelector(".folders-container").style.display = "none";
     let foldlist = [];
@@ -424,17 +342,23 @@ function App() {
       if (userDoc.lead_name === e.title) {
         setParentfolder(userDoc.name);
         setnewUser(userDoc.title);
-        userDoc.custom_street.length > 0
-          ? setuserstreet("")
-          : setuserstreet(userDoc.custom_street);
+        if (userDoc.street) {
+          userDoc.street.length > 0
+            ? setuserstreet("")
+            : setuserstreet(userDoc.street);
+        }
 
-        userDoc.custom_state1.length > 0
-          ? setuserstate("")
-          : setuserstate(userDoc.custom_state1);
+        if (userDoc.state1) {
+          userDoc.state1.length > 0
+            ? setuserstate("")
+            : setuserstate(userDoc.state1);
+        }
 
-        userDoc.custom_country1.length > 0
-          ? setusercountry("")
-          : setusercountry(userDoc.custom_country1);
+        if (userDoc.country1) {
+          userDoc.country1.length > 0
+            ? setusercountry("")
+            : setusercountry(userDoc.country1);
+        }
         try {
           const docs = await db.getDocList("File", {
             fields: ["name", "file_name"],
@@ -454,7 +378,7 @@ function App() {
               ],
             });
           } else {
-            initializeFolders(e);
+            alert("No Folder Found");
           }
           if (foldlist.length > 0) {
             const mainFolders = await db.getDocList("File", {
@@ -532,8 +456,6 @@ function App() {
             );
 
             setFolders(allSubfolders);
-          } else {
-            initializeFolders();
           }
         } catch (error) {
           console.error("Error fetching folders:", error);
@@ -568,6 +490,23 @@ function App() {
     if (invoiceList.includes(selectedInvoice)) {
       await callnewfolder(selectedInvoice);
     }
+  };
+
+  const handelchange = async (e) => {
+    setInputValue(e);
+    await fetchmydata(e);
+    setUserManuallyChanged(true);
+    setSelectedUser(e.target.value);
+    const selectedInvoice = invoiceList.find(
+      (invoice) => invoice.title === e.target.value
+    );
+    console.log(selectedInvoice, "selected invoice");
+    if (invoiceList.includes(selectedInvoice)) {
+      await callnewfolder(selectedInvoice);
+    }
+  };
+  const onfocus = (e) => {
+    callUser();
   };
 
   const handleFolderClick = (folder, index) => {
@@ -1255,6 +1194,27 @@ function App() {
                 })}
             </datalist>
           </div>
+          <label htmlFor="invoiceList">Users</label>
+          <input
+            style={{
+              width: "30%",
+              height: "30px",
+              borderRadius: "10px",
+              marginBottom: "10px",
+              marginLeft: "10px",
+            }}
+            type="search"
+            id="sdkfmkf"
+            className="searchbar"
+            placeholder="Search search..."
+            value={inputValue}
+            // onChange={(e) => {
+            //   handleChange(e);
+            // }}
+            onChange={(e) => handelchange(e.target.value)}
+            onFocus={(e) => onfocus(e.target.value)}
+            onBlur={(e) => handelchange(e.target.value)}
+          />
           <div className="feildtype">
             <label htmlFor="feild">Folders</label>
             <select
@@ -1304,14 +1264,13 @@ function App() {
           >
             Add Folder
           </button>
-          {getingdata && (
-            <div
-              style={{
-                marginTop: "200px",
-              }}
-            >
-              Getting Folders...
-            </div>
+          {getingdata && inputValue.length > 0 ? (
+            <div style={{ marginTop: "200px" }}>Getting Folders...</div>
+          ) : (
+            getingdata &&
+            inputValue.length <= 0 && (
+              <div style={{ marginTop: "200px" }}>No User Selected</div>
+            )
           )}
           <div
             id="image-uploader-section"
