@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import "./App.css";
 import { FrappeApp } from "frappe-js-sdk";
-import LoaderComponent from "./Loader";
+import imageCompression from "browser-image-compression";
+import toast, { Toaster } from "react-hot-toast";
+import Signin from "./components/Signin";
 
 function App() {
   // const getSiteName = () => {
@@ -37,6 +39,8 @@ function App() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
   const [userManuallyChanged, setUserManuallyChanged] = useState(false);
   const [foldertype, setfoldertype] = useState([
     "Post Install Folder",
@@ -195,7 +199,7 @@ function App() {
       }
       if (foldlist.length > 0) {
         const mainFolders = await db.getDocList("File", {
-          fields: ["name", "file_name", "idx"],
+          fields: ["name", "file_name"],
           filters: [
             ["folder", "=", `Home/${parentfolder}/${feildname}`],
             ["is_folder", "=", 1],
@@ -208,7 +212,7 @@ function App() {
         const allSubfolders = await Promise.all(
           mainFolders.map(async (mainFolder) => {
             const subFolders = await db.getDocList("File", {
-              fields: ["name", "file_name", "custom_custom_description_"],
+              fields: ["name", "file_name", "description"],
               filters: [
                 [
                   "folder",
@@ -220,7 +224,7 @@ function App() {
             });
 
             let totalImageCount = 0;
-
+            console.log(subFolders, "all subfolders");
             const subfolderImages = await Promise.all(
               subFolders.map(async (subFolder) => {
                 const images = await db.getDocList("File", {
@@ -232,6 +236,7 @@ function App() {
                       `Home/${parentfolder}/${feildname}/${mainFolder.file_name}/${subFolder.file_name}`,
                     ],
                   ],
+                  limit: 100,
                 });
                 const imageList = images.map((img) => ({
                   src: `${siteurl}${img.file_url}`,
@@ -247,6 +252,7 @@ function App() {
                   name: subFolder.file_name,
                   images: imageList,
                   minimized: false,
+                  discription: subFolder.description,
                 };
               })
             );
@@ -279,6 +285,8 @@ function App() {
     }
   }, [parentfolder, folderlist]);
 
+  const [orderList, setOrderList] = useState([]);
+
   const callUser = async () => {
     try {
       let newUsers = [];
@@ -286,48 +294,28 @@ function App() {
         fields: ["title", "name", "street", "city1", "state1", "country1"],
         limit: 10000,
       });
-      console.log(docs);
+
       newUsers = docs.map((doc) => ({
         title: doc.title,
         name: doc.name,
-        state: doc.street ? doc.street : "",
-        state1: doc.city1 ? doc.city1 : "",
-        state2: doc.state1 ? doc.state1 : "",
-        state3: doc.country1 ? doc.country1 : "",
+        state: doc.street || "",
+        state1: doc.city1 || "",
+        state2: doc.state1 || "",
+        state3: doc.country1 || "",
       }));
-
       setInvoiceList(newUsers);
+      setOrderList(newUsers);
     } catch (error) {
       console.error("There was an error while fetching the documents:", error);
     }
   };
 
-  const fetchmydata = async (e) => {
-    try {
-      let newUsers = [];
-      const docs = await db
-        .getDocList("Lead", {
-          fields: ["title", "name", "street", "city1", "state1", "country1"],
-          limit: 10000,
-        })
-        .then((response) => response.json())
-        .then((json) => {
-          const filterdata = json.filter((user) => {
-            return user && user.title && user.title.toLowerCase().includes(e);
-          });
-          setInvoiceList(filterdata);
-        });
-    } catch (error) {
-      console.error("There was an error while fetching the documents:", error);
+  useEffect(() => {
+    if (count === 1) {
+      callUser();
     }
-  };
-
-  // useEffect(() => {
-  //   if (count === 1) {
-  //     callUser();
-  //   }
-  //   ("");
-  // }, [count]);
+    ("");
+  }, [count]);
 
   const callnewfolder = async (e) => {
     console.log("callnewwfolder run");
@@ -378,7 +366,7 @@ function App() {
               ],
             });
           } else {
-            alert("No Folder Found");
+            toast.error("No Folder Found");
           }
           if (foldlist.length > 0) {
             const mainFolders = await db.getDocList("File", {
@@ -395,7 +383,7 @@ function App() {
             const allSubfolders = await Promise.all(
               mainFolders.map(async (mainFolder) => {
                 const subFolders = await db.getDocList("File", {
-                  fields: ["name", "file_name", "custom_custom_description_"],
+                  fields: ["name", "file_name", "description"],
                   filters: [
                     [
                       "folder",
@@ -414,7 +402,7 @@ function App() {
                       fields: [
                         "name",
                         "file_name",
-                        "custom_custom_description_",
+                        "description",
                         "file_url",
                         "flag",
                       ],
@@ -441,6 +429,7 @@ function App() {
                       name: subFolder.file_name,
                       images: imageList,
                       minimized: false,
+                      discription: subFolder.description,
                     };
                   })
                 );
@@ -468,45 +457,139 @@ function App() {
     document.querySelector(".folders-container").style.display = "block";
   };
 
+  const undo = (e, description, id) => {
+    const subfolderElement = document.querySelector(
+      `[data-subfolder-id="${id}"]`
+    );
+    subfolderElement.querySelector(".submit").style.display = "none";
+    subfolderElement.querySelector(".edit").style.display = "block";
+    subfolderElement.querySelector(".undo").style.display = "none";
+    subfolderElement.querySelector(".hidedisk").style.display = "none";
+    subfolderElement.querySelector(".showdes").style.display = "block";
+  };
+
+  const changeinput = (e, description, id) => {
+    console.log(description, "description");
+    const subfolderElement = document.querySelector(
+      `[data-subfolder-id="${id}"]`
+    );
+    if (subfolderElement) {
+      subfolderElement.querySelector(".submit").style.display = "block";
+      subfolderElement.querySelector(".undo").style.display = "block";
+      subfolderElement.querySelector(".edit").style.display = "none";
+      subfolderElement.querySelector(".hidedisk").style.display = "block";
+      subfolderElement.querySelector(".showdes").style.display = "none";
+    } else {
+      console.error("Subfolder element not found");
+    }
+  };
+
+  const descriptionchange = async (description, folder, id, name) => {
+    const subfolderElement = document.querySelector(
+      `[data-subfolder-id="${id}"]`
+    );
+    if (!subfolderElement) {
+      console.error("Subfolder element not found");
+      return;
+    }
+
+    const text = subfolderElement.querySelector(".hidedisk").value;
+    const formData = { description: text };
+
+    const requestOptions = {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formData),
+    };
+
+    try {
+      const response = await fetch(
+        `https://erp.solarblocks.us/api/resource/File/${folder.id}/${name}`,
+        requestOptions
+      );
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to update description");
+      }
+      toast.success("Description Updated");
+      subfolderElement.querySelector(".showdes").value = text;
+      subfolderElement.querySelector(".submit").style.display = "none";
+      subfolderElement.querySelector(".edit").style.display = "block";
+      subfolderElement.querySelector(".hidedisk").style.display = "none";
+      subfolderElement.querySelector(".showdes").style.display = "block";
+    } catch (error) {
+      toast.error("Something went wrong");
+      setIsLoggedIn(false);
+    }
+  };
+
   const handleSelectChange1 = (event) => {
     let status = event.target.value;
-    console.log(status, "it's an status");
-    console.log(parentfolder, "parentfolder");
-    db.updateDoc("Lead", parentfolder, {
-      custom_final__status: status,
-    })
-      .then((doc) => console.log(doc))
-      .catch((error) => console.error(error));
+    if (folderlist === "Pre Install Folder") {
+      db.updateDoc("Lead", parentfolder, {
+        custom_pre_install_status: status,
+      })
+        .then((doc) => console.log(doc))
+        .catch((error) => console.error(error));
+    } else {
+      db.updateDoc("Lead", parentfolder, {
+        custom_post_install_status: status,
+      })
+        .then((doc) => console.log(doc))
+        .catch((error) => console.error(error));
+    }
   };
 
-  const handleChange = async (e) => {
-    setInputValue(e.target.value);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    setInputValue(value);
     setUserManuallyChanged(true);
-    setSelectedUser(e.target.value);
+    setSelectedOrder(value);
+
+    if (value.trim() === "") {
+      setSuggestions(orderList);
+    } else {
+      const filteredSuggestions = orderList.filter((order) => {
+        const combinedString =
+          `${order.title} ${order.state} ${order.state1} ${order.state2} ${order.state3}`.toLowerCase();
+        return combinedString.includes(value.toLowerCase());
+      });
+      setSuggestions(filteredSuggestions);
+    }
+  };
+
+  const handleSuggestionClick = async (suggestion) => {
+    setInputValue(suggestion.title);
+    setSelectedOrder(suggestion);
+    setSuggestions([]);
     const selectedInvoice = invoiceList.find(
-      (invoice) => invoice.title === e.target.value
+      (invoice) => invoice.title === suggestion.title
     );
-    console.log(selectedInvoice, "selected invoice");
-    if (invoiceList.includes(selectedInvoice)) {
+    if (selectedInvoice) {
       await callnewfolder(selectedInvoice);
     }
   };
 
-  const handelchange = async (e) => {
-    setInputValue(e);
-    await fetchmydata(e);
-    setUserManuallyChanged(true);
-    setSelectedUser(e.target.value);
-    const selectedInvoice = invoiceList.find(
-      (invoice) => invoice.title === e.target.value
-    );
-    console.log(selectedInvoice, "selected invoice");
-    if (invoiceList.includes(selectedInvoice)) {
-      await callnewfolder(selectedInvoice);
+  const showsuggestions = () => {
+    setShowSuggestions(true);
+    if (inputValue.trim() === "") {
+      setSuggestions(orderList);
+    } else {
+      const filteredSuggestions = orderList.filter((order) => {
+        const combinedString =
+          `${order.title} ${order.state} ${order.state1} ${order.state2} ${order.state3}`.toLowerCase();
+        return combinedString.includes(inputValue.toLowerCase());
+      });
+      setSuggestions(filteredSuggestions);
     }
   };
-  const onfocus = (e) => {
-    callUser();
+
+  const showsuggestions2 = () => {
+    setTimeout(() => {
+      setShowSuggestions(false);
+    }, 500);
   };
 
   const handleFolderClick = (folder, index) => {
@@ -558,10 +641,29 @@ function App() {
     subfoldername,
     event
   ) => {
+    console.log("hey");
     setLoading(true);
     console.log(subfoldername);
     const files = Array.from(event.target.files);
-    const imageObjects = files.map((file) => ({
+
+    const compressedFiles = await Promise.all(
+      files.map(async (file) => {
+        const options = {
+          maxSizeMB: 1,
+          maxWidthOrHeight: 1024,
+          useWebWorker: true,
+        };
+        try {
+          const compressedFile = await imageCompression(file, options);
+          return compressedFile;
+        } catch (error) {
+          console.error("Error compressing image:", error);
+          return file;
+        }
+      })
+    );
+
+    const imageObjects = compressedFiles.map((file) => ({
       src: URL.createObjectURL(file),
       name: file.name,
     }));
@@ -697,12 +799,11 @@ function App() {
       (subfolder) => subfolder.name === subfoldername
     );
     if (updatedSubfolder) {
-      await createfolders(updatedSubfolder, folderIndex, subfolderIndex);
+      // await createfolders(updatedSubfolder, folderIndex, subfolderIndex);
       console.log("Updated Subfolder:", updatedSubfolder);
     } else {
       console.error(`Subfolder '${subfoldername}' not found.`);
     }
-
     setLoading(false);
   };
 
@@ -722,11 +823,9 @@ function App() {
 
   const createfolders = async (folders, folderIndex, subfolderIndex) => {
     const feildname = fieldRef.current ? fieldRef.current.value : "";
-    console.log(feildname, "feildname");
-    console.log(folders, "this is tyhe ashdasjkiuf");
     try {
       const existingImagesInSubFolder = await db.getDocList("File", {
-        fields: ["name", "file_name", "flag", "custom_custom_description_"],
+        fields: ["name", "file_name", "flag", "description"],
         filters: [["folder", "=", `${folders.id}`]],
       });
 
@@ -743,7 +842,6 @@ function App() {
               flag: correspondingNewImage.flag,
             });
           }
-          // Assign the existing image ID to the new image object
           correspondingNewImage.id = existingImage.name;
         }
       }
@@ -791,8 +889,6 @@ function App() {
           });
         }
       }
-
-      // Update the state with new image IDs
       setFolders((prevFolders) => {
         const updatedFolders = [...prevFolders];
         updatedFolders[folderIndex].subfolders[subfolderIndex] = folders;
@@ -806,6 +902,11 @@ function App() {
   const openpdf = () => {
     document.querySelector(".pdf").style.display = "block";
     document.querySelector(".main").style.display = "none";
+  };
+  const signout = () => {
+    localStorage.clear();
+    location.reload();
+    setIsLoggedIn(false);
   };
   const createdoc = () => {
     db.createDoc("image printer", {
@@ -838,83 +939,15 @@ function App() {
 
   return (
     <>
-      <div
-        id="login"
-        style={{
-          backgroundColor: "#f8f9fa",
-          display: isLoggedIn ? "none" : "block",
-        }}
-        className="login"
-      >
-        <div
-          id="login"
-          style={{
-            backgroundColor: "#f8f9fa",
-            display: "block",
-          }}
-          className="login"
-        >
-          <div
-            className="Contaner"
-            style={{
-              width: "100%",
-              height: "100vh",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <main
-              className="form-signin"
-              style={{
-                maxWidth: "400px",
-                padding: "20px",
-                borderRadius: "10px",
-                boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
-              }}
-            >
-              <form>
-                <h1 className="h3 mb-3 fw-normal text-center">
-                  Please sign in
-                </h1>
-
-                <div className="form-floating">
-                  <input
-                    type="email"
-                    className="form-control"
-                    id="floatingInput"
-                    placeholder="name@example.com"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    style={{ borderRadius: "10px" }}
-                  />
-                  <label htmlFor="floatingInput">Email address</label>
-                </div>
-                <div className="form-floating">
-                  <input
-                    type="password"
-                    className="form-control"
-                    id="floatingPassword"
-                    placeholder="Password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    style={{ borderRadius: "10px" }}
-                  />
-                  <label htmlFor="floatingPassword">Password</label>
-                </div>
-                <button
-                  className="btn btn-primary w-100 py-2"
-                  type="button"
-                  onClick={handleLogin}
-                  style={{ borderRadius: "10px" }}
-                >
-                  Sign in
-                </button>
-              </form>
-            </main>
-          </div>
-        </div>
-      </div>
+      <Toaster />
+      <Signin
+        handleLogin={handleLogin}
+        isLoggedIn={isLoggedIn}
+        username={username}
+        setUsername={setUsername}
+        setPassword={setPassword}
+        password={password}
+      />
       <div
         id="allfeild"
         className="allfeild"
@@ -975,6 +1008,20 @@ function App() {
               }}
             >
               Create PDF
+            </button>
+            <button
+              onClick={signout}
+              style={{
+                marginLeft: "25px",
+                borderRadius: "10px",
+                padding: "10px",
+                backgroundColor: "rgb(249 166 166)",
+                height: "fit-Content",
+                width: "160px",
+                marginTop: "10px",
+              }}
+            >
+              Sign Out
             </button>
           </ul>
         </div>
@@ -1075,6 +1122,20 @@ function App() {
             >
               Create PDF
             </button>
+            <button
+              onClick={signout}
+              style={{
+                marginLeft: "25px",
+                borderRadius: "10px",
+                padding: "10px",
+                backgroundColor: "rgb(249 166 166)",
+                height: "fit-Content",
+                width: "160px",
+                marginTop: "10px",
+              }}
+            >
+              Sign Out
+            </button>
           </ul>
         </div>
         <div
@@ -1168,53 +1229,30 @@ function App() {
                 marginBottom: "10px",
                 marginLeft: "10px",
               }}
-              list="datalistOptions"
+              type="search"
               id="sdkfmkf"
-              placeholder="Search search..."
+              placeholder="Search for Users"
+              className="purorder"
               value={inputValue}
-              onChange={(e) => {
-                handleChange(e);
-              }}
+              onChange={handleInputChange}
+              onFocus={showsuggestions}
+              onBlur={showsuggestions2}
             />
-            <datalist id="datalistOptions">
-              {invoiceList.length > 0 &&
-                invoiceList.map((invoice, index) => {
-                  return (
-                    <option
-                      key={index}
-                      value={invoice.title}
-                      className={invoice.name}
-                    >
-                      {invoice.state +
-                        invoice.state1 +
-                        invoice.state2 +
-                        invoice.state3}
-                    </option>
-                  );
-                })}
-            </datalist>
+            {showSuggestions && (
+              <ul className="suggestions">
+                {suggestions.map((suggestion, index) => (
+                  <li
+                    key={index}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                  >
+                    <div>
+                      {`${suggestion.title} - ${suggestion.state}, ${suggestion.state1}, ${suggestion.state2}, ${suggestion.state3}`}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
-          <label htmlFor="invoiceList">Users</label>
-          <input
-            style={{
-              width: "30%",
-              height: "30px",
-              borderRadius: "10px",
-              marginBottom: "10px",
-              marginLeft: "10px",
-            }}
-            type="search"
-            id="sdkfmkf"
-            className="searchbar"
-            placeholder="Search search..."
-            value={inputValue}
-            // onChange={(e) => {
-            //   handleChange(e);
-            // }}
-            onChange={(e) => handelchange(e.target.value)}
-            onFocus={(e) => onfocus(e.target.value)}
-            onBlur={(e) => handelchange(e.target.value)}
-          />
           <div className="feildtype">
             <label htmlFor="feild">Folders</label>
             <select
@@ -1298,6 +1336,8 @@ function App() {
                   <div
                     className={`folder ${folder.minimized ? "minimized" : ""}`}
                     key={subfolder.id}
+                    data-folder-index={folderIndex}
+                    data-subfolder-index={subfolderIndex}
                     onClick={(e) => {
                       if (e.target.className.includes("folder")) {
                         handleFolderClick(folder, folderIndex);
@@ -1331,7 +1371,11 @@ function App() {
                           readOnly
                           value={subfolder.name}
                           className="fixednames"
-                          style={{ color: "#0039ff", fontSize: "1em" }}
+                          style={{
+                            color: "#0039ff",
+                            fontSize: "1em",
+                            width: "100%",
+                          }}
                         />
                         <button
                           onClick={() =>
@@ -1349,6 +1393,137 @@ function App() {
                           ▼
                         </button>
                       </div>
+                      <div
+                        data-subfolder-id={subfolder.id}
+                        style={{
+                          border: "1px solid #ccc",
+                          borderRadius: "10px",
+                          width: "100%",
+                          marginBottom: "10px",
+                          padding: "5px",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          position: "relative",
+                        }}
+                      >
+                        {/* <input
+                          className="showdes"
+                          readOnly
+                          value={subfolder.discription}
+                          type="text"
+                          style={{
+                            color: "#0039ff",
+                            fontSize: "1em",
+                            border: "none",
+                            outline: "none",
+                            display: "block",
+                          }}
+                          placeholder="Description..."
+                        /> */}
+                        <textarea
+                          className="showdes"
+                          readOnly
+                          value={subfolder.discription}
+                          type="text"
+                          style={{
+                            color: "#0039ff",
+                            fontSize: "1em",
+                            border: "none",
+                            outline: "none",
+                            display: "block",
+                            minHeight: "30px",
+                            width: "90%",
+                          }}
+                          placeholder="Description..."
+                        />
+                        {/* <input
+                          className="hidedisk"
+                          type="text"
+                          style={{
+                            color: "#0039ff",
+                            fontSize: "1em",
+                            border: "none",
+                            outline: "none",
+                            display: "none",
+                          }}
+                          placeholder="Description..."
+                        /> */}
+                        <textarea
+                          className="hidedisk"
+                          type="text"
+                          style={{
+                            color: "#0039ff",
+                            fontSize: "1em",
+                            border: "none",
+                            outline: "none",
+                            display: "none",
+                            minHeight: "30px",
+                            width: "90%",
+                          }}
+                          placeholder="Description..."
+                        />
+                        <button
+                          className="edit"
+                          style={{
+                            border: "none",
+                            backgroundColor: "transparent",
+                            color: "red",
+                            display: "block",
+                            position: "absolute",
+                            right: "10px",
+                          }}
+                          onClick={(e) =>
+                            changeinput(e, subfolder.discription, subfolder.id)
+                          }
+                        >
+                          <i className="fa-regular fa-pen-to-square"></i>
+                        </button>
+                        <button
+                          className="submit"
+                          style={{
+                            border: "none",
+                            backgroundColor: "transparent",
+                            color: "red",
+                            display: "none",
+                            position: "absolute",
+                            right: "40px",
+                            top: "3px",
+                          }}
+                          onClick={() =>
+                            descriptionchange(
+                              subfolder.description,
+                              folder,
+                              subfolder.id,
+                              subfolder.name
+                            )
+                          }
+                        >
+                          <i
+                            className="fa-solid fa-check"
+                            style={{ color: "#63E6BE" }}
+                          ></i>
+                        </button>
+                        <button
+                          className="undo"
+                          style={{
+                            border: "none",
+                            backgroundColor: "transparent",
+                            color: "red",
+                            display: "none",
+                            position: "absolute",
+                            right: "10px",
+                          }}
+                          onClick={(e) => {
+                            undo(e, subfolder.discription, subfolder.id);
+                          }}
+                        >
+                          <i
+                            class="fa-solid fa-xmark"
+                            style={{ color: "red" }}
+                          ></i>
+                        </button>
+                      </div>
+
                       {subfolder.images.length === 0 && (
                         <label
                           className="custom-file-upload"
@@ -1581,8 +1756,8 @@ function Modal({
           </button>
           <img
             style={{
-              maxWidth: "100%",
-              maxHeight: "100%",
+              maxWidth: "800px",
+              maxHeight: "400px",
               backgroundSize: "cover",
             }}
             src={localImages[currentImageIndex]?.src}
