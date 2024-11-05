@@ -6,21 +6,7 @@ import toast, { Toaster } from "react-hot-toast";
 import Signin from "./components/Signin";
 
 function App() {
-  // const getSiteName = () => {
-  //   if (
-  //     window.frappe?.boot?.versions?.frappe &&
-  //     (window.frappe.boot.versions.frappe.startsWith("15") ||
-  //       window.frappe.boot.versions.frappe.startsWith("16"))
-  //   ) {
-  //     console.log(import.meta.env.VITE_SITE_NAME);
-  //     return window.frappe?.boot?.sitename ?? import.meta.env.VITE_SITE_NAME;
-  //   }
-  //   return import.meta.env.VITE_SITE_NAME;
-  // };
-
-  // const frappeUrl = "https://yash.tranqwality.com/";
   const frappeUrl = "https://erp.solarblocks.us/";
-
   const siteurl = frappeUrl;
   const frappe = new FrappeApp(siteurl);
   const auth = frappe.auth();
@@ -28,6 +14,7 @@ function App() {
   const files = frappe.file();
 
   const [folders, setFolders] = useState([]);
+  const [statuscount, setstatuscount] = useState(0);
   const [count, setCount] = useState(0);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedImages, setSelectedImages] = useState([]);
@@ -38,7 +25,8 @@ function App() {
   const [parentfolder, setParentfolder] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState();
+  const [statusupdate, setstatusupdate] = useState(1);
   const [selectedOrder, setSelectedOrder] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [userManuallyChanged, setUserManuallyChanged] = useState(false);
@@ -63,34 +51,16 @@ function App() {
   useEffect(() => {
     const storedIsLoggedIn = localStorage.getItem("isLoggedIn");
     if (storedIsLoggedIn === "true") {
-      setIsLoggedIn(true);
       checkLogoutTimer();
       document.querySelector("#login").style.display = "none";
       document.querySelector("#allfeild").style.display = "block";
     }
   }, []);
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    try {
-      const auth = frappe.auth();
-      await auth.loginWithUsernamePassword({ username, password });
-
-      localStorage.setItem("isLoggedIn", "true");
-      localStorage.setItem("loginTime", new Date().getTime());
-      setIsLoggedIn(true);
-      startLogoutTimer();
-      document.querySelector("#login").style.display = "none";
-      document.querySelector("#allfeild").style.display = "block";
-    } catch (error) {
-      console.error("Login failed:", error);
-    }
-  };
-
   const startLogoutTimer = () => {
     setTimeout(() => {
       logout();
-    }, 12 * 60 * 60 * 1000);
+    }, 2 * 60 * 60 * 1000);
   };
 
   const checkLogoutTimer = () => {
@@ -98,12 +68,13 @@ function App() {
     if (!isNaN(loginTime)) {
       const currentTime = new Date().getTime();
       const elapsedTime = currentTime - loginTime;
-      if (elapsedTime >= 12 * 60 * 60 * 1000) {
+      if (elapsedTime >= 2 * 60 * 60 * 1000) {
         logout();
+        localStorage.setItem("isLoggedIn", "false");
         document.querySelector("#login").style.display = "block";
         document.querySelector("#allfeild").style.display = "none";
       } else {
-        const remainingTime = 12 * 60 * 60 * 1000 - elapsedTime;
+        const remainingTime = 2 * 60 * 60 * 1000 - elapsedTime;
         startLogoutTimer(remainingTime);
       }
     }
@@ -124,7 +95,6 @@ function App() {
       : decodeURIComponent(results[1].replace(/\+/g, " "));
   }
 
-  // Get the parameters from the URL
   const lead = getUrlParameter("lead");
   const firstName = getUrlParameter("first_name");
   const typeoffolder = getUrlParameter("type");
@@ -153,130 +123,134 @@ function App() {
   }, [invoiceList, firstName, userManuallyChanged]);
 
   const callfolder = async () => {
-    console.log("callfolder run");
-    setgetingdata(true);
-    document.querySelector(".folders-container").style.display = "none";
-    let foldlist = [];
-    const feildname = fieldRef.current.value;
-    setFolderList(feildname);
-    try {
-      const docs = await db.getDocList("File", {
-        fields: ["name", "file_name"],
-        filters: [
-          ["folder", "=", "Home"],
-          ["is_folder", "=", 1],
-          ["file_name", "=", parentfolder],
-        ],
-      });
-      if (docs.length > 0) {
-        let userdetails = await db.getDoc("Lead", docs[0].file_name);
-        setnewUser(userdetails.title);
-        if (userdetails.street) {
-          userdetails.street.length > 0
-            ? setuserstreet("")
-            : setuserstreet(userdetails.street);
-        }
-
-        if (userdetails.state1) {
-          userdetails.state1.length > 0
-            ? setuserstate("")
-            : setuserstate(userdetails.state1);
-        }
-
-        if (userdetails.country1) {
-          userdetails.country1.length > 0
-            ? setusercountry("")
-            : setusercountry(userdetails.country1);
-        }
-        foldlist = await db.getDocList("File", {
+    if (localStorage.getItem("isLoggedIn") === "true") {
+      setstatuscount(0);
+      setgetingdata(true);
+      document.querySelector(".folders-container").style.display = "none";
+      let foldlist = [];
+      const feildname = fieldRef.current.value;
+      setFolderList(feildname);
+      try {
+        const docs = await db.getDocList("File", {
           fields: ["name", "file_name"],
           filters: [
-            ["folder", "=", `Home/${parentfolder}`],
+            ["folder", "=", "Home"],
             ["is_folder", "=", 1],
-            ["file_name", "=", feildname],
+            ["file_name", "=", parentfolder],
           ],
         });
-      }
-      if (foldlist.length > 0) {
-        const mainFolders = await db.getDocList("File", {
-          fields: ["name", "file_name"],
-          filters: [
-            ["folder", "=", `Home/${parentfolder}/${feildname}`],
-            ["is_folder", "=", 1],
-          ],
-          orderBy: {
-            field: "creation",
-            order: "asc",
-          },
-        });
-        const allSubfolders = await Promise.all(
-          mainFolders.map(async (mainFolder) => {
-            const subFolders = await db.getDocList("File", {
-              fields: ["name", "file_name", "description"],
-              filters: [
-                [
-                  "folder",
-                  "=",
-                  `Home/${parentfolder}/${feildname}/${mainFolder.file_name}`,
-                ],
-                ["is_folder", "=", 1],
-              ],
-            });
+        if (docs.length > 0) {
+          let userdetails = await db.getDoc("Lead", docs[0].file_name);
+          setnewUser(userdetails.title);
+          if (userdetails.street) {
+            userdetails.street.length > 0
+              ? setuserstreet("")
+              : setuserstreet(userdetails.street);
+          }
 
-            let totalImageCount = 0;
-            console.log(subFolders, "all subfolders");
-            const subfolderImages = await Promise.all(
-              subFolders.map(async (subFolder) => {
-                const images = await db.getDocList("File", {
-                  fields: ["name", "file_name", "file_url", "flag"],
-                  filters: [
-                    [
-                      "folder",
-                      "=",
-                      `Home/${parentfolder}/${feildname}/${mainFolder.file_name}/${subFolder.file_name}`,
-                    ],
+          if (userdetails.state1) {
+            userdetails.state1.length > 0
+              ? setuserstate("")
+              : setuserstate(userdetails.state1);
+          }
+
+          if (userdetails.country1) {
+            userdetails.country1.length > 0
+              ? setusercountry("")
+              : setusercountry(userdetails.country1);
+          }
+          foldlist = await db.getDocList("File", {
+            fields: ["name", "file_name"],
+            filters: [
+              ["folder", "=", `Home/${parentfolder}`],
+              ["is_folder", "=", 1],
+              ["file_name", "=", feildname],
+            ],
+          });
+        }
+        if (foldlist.length > 0) {
+          const mainFolders = await db.getDocList("File", {
+            fields: ["name", "file_name"],
+            filters: [
+              ["folder", "=", `Home/${parentfolder}/${feildname}`],
+              ["is_folder", "=", 1],
+            ],
+            orderBy: {
+              field: "creation",
+              order: "asc",
+            },
+          });
+          const allSubfolders = await Promise.all(
+            mainFolders.map(async (mainFolder) => {
+              const subFolders = await db.getDocList("File", {
+                fields: ["name", "file_name", "description"],
+                filters: [
+                  [
+                    "folder",
+                    "=",
+                    `Home/${parentfolder}/${feildname}/${mainFolder.file_name}`,
                   ],
-                  limit: 100,
-                });
-                const imageList = images.map((img) => ({
-                  src: `${siteurl}${img.file_url}`,
-                  name: img.file_name,
-                  id: img.name,
-                  flag: img.flag || false,
-                }));
+                  ["is_folder", "=", 1],
+                ],
+              });
 
-                totalImageCount += imageList.length;
+              let totalImageCount = 0;
+              const subfolderImages = await Promise.all(
+                subFolders.map(async (subFolder) => {
+                  const images = await db.getDocList("File", {
+                    fields: ["name", "file_name", "file_url", "flag"],
+                    filters: [
+                      [
+                        "folder",
+                        "=",
+                        `Home/${parentfolder}/${feildname}/${mainFolder.file_name}/${subFolder.file_name}`,
+                      ],
+                    ],
+                    limit: 100,
+                  });
+                  const imageList = images.map((img) => ({
+                    src: `${siteurl}${img.file_url}`,
+                    name: img.file_name,
+                    id: img.name,
+                    flag: img.flag || false,
+                  }));
 
-                return {
-                  id: subFolder.name,
-                  name: subFolder.file_name,
-                  images: imageList,
-                  minimized: false,
-                  discription: subFolder.description,
-                };
-              })
-            );
+                  totalImageCount += imageList.length;
 
-            return {
-              idx: mainFolder.idx,
-              id: mainFolder.name,
-              mainname: mainFolder.file_name,
-              subfolders: subfolderImages,
-              imageCount: totalImageCount,
-            };
-          })
-        );
+                  return {
+                    id: subFolder.name,
+                    name: subFolder.file_name,
+                    images: imageList,
+                    minimized: false,
+                    discription: subFolder.description,
+                  };
+                })
+              );
 
-        setFolders(allSubfolders);
+              return {
+                idx: mainFolder.idx,
+                id: mainFolder.name,
+                mainname: mainFolder.file_name,
+                subfolders: subfolderImages,
+                imageCount: totalImageCount,
+              };
+            })
+          );
+
+          setFolders(allSubfolders);
+          setgetingdata(false);
+        } else {
+        }
+      } catch (error) {
+        console.error("Error fetching folders:", error);
         setgetingdata(false);
-      } else {
       }
-    } catch (error) {
-      console.error("Error fetching folders:", error);
-      setgetingdata(false);
+      setCount(1);
+      setstatuscount(1);
+      document.querySelector(".folders-container").style.display = "block";
+    } else {
+      console.log(username, "islogin");
     }
-    setCount(1);
-    document.querySelector(".folders-container").style.display = "block";
   };
 
   useEffect(() => {
@@ -284,9 +258,7 @@ function App() {
       callfolder();
     }
   }, [parentfolder, folderlist]);
-
   const [orderList, setOrderList] = useState([]);
-
   const callUser = async () => {
     try {
       let newUsers = [];
@@ -306,7 +278,7 @@ function App() {
       setInvoiceList(newUsers);
       setOrderList(newUsers);
     } catch (error) {
-      console.error("There was an error while fetching the documents:", error);
+      toast.error("There was an error while fetching the documents", error);
     }
   };
 
@@ -318,7 +290,7 @@ function App() {
   }, [count]);
 
   const callnewfolder = async (e) => {
-    console.log("callnewwfolder run");
+    setstatuscount(0);
     setgetingdata(true);
     document.querySelector(".folders-container").style.display = "none";
     let foldlist = [];
@@ -420,6 +392,7 @@ function App() {
                       name: img.file_name,
                       id: img.name,
                       flag: img.flag || false,
+                      is_private: 0,
                     }));
 
                     totalImageCount += imageList.length;
@@ -447,13 +420,14 @@ function App() {
             setFolders(allSubfolders);
           }
         } catch (error) {
-          console.error("Error fetching folders:", error);
+          toast.error("Error fetching folders:", error);
         }
       }
     } catch (error) {
       console.error("There was an error while fetching the documents:", error);
     }
     setgetingdata(false);
+    setstatuscount(1);
     document.querySelector(".folders-container").style.display = "block";
   };
 
@@ -469,7 +443,6 @@ function App() {
   };
 
   const changeinput = (e, description, id) => {
-    console.log(description, "description");
     const subfolderElement = document.querySelector(
       `[data-subfolder-id="${id}"]`
     );
@@ -480,7 +453,7 @@ function App() {
       subfolderElement.querySelector(".hidedisk").style.display = "block";
       subfolderElement.querySelector(".showdes").style.display = "none";
     } else {
-      console.error("Subfolder element not found");
+      toast.error("Subfolder element not found");
     }
   };
 
@@ -489,10 +462,9 @@ function App() {
       `[data-subfolder-id="${id}"]`
     );
     if (!subfolderElement) {
-      console.error("Subfolder element not found");
+      toast.error("Subfolder element not found");
       return;
     }
-
     const text = subfolderElement.querySelector(".hidedisk").value;
     const formData = { description: text };
 
@@ -500,47 +472,104 @@ function App() {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(formData),
+      credentials: "include",
     };
 
-    try {
-      const response = await fetch(
-        `https://erp.solarblocks.us/api/resource/File/${folder.id}/${name}`,
-        requestOptions
-      );
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to update description");
+    if (statusupdate) {
+      try {
+        const response = await fetch(
+          `https://erp.solarblocks.us/api/resource/File/${folder.id}/${name}`,
+          requestOptions
+        );
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.log(errorData._server_messages);
+        }
+        toast.success("Description Updated");
+        subfolderElement.querySelector(".showdes").value = text;
+        subfolderElement.querySelector(".submit").style.display = "none";
+        subfolderElement.querySelector(".edit").style.display = "block";
+        subfolderElement.querySelector(".hidedisk").style.display = "none";
+        subfolderElement.querySelector(".showdes").style.display = "block";
+      } catch (error) {
+        // toast.error(error);
+        console.log(error, "error");
       }
-      toast.success("Description Updated");
-      subfolderElement.querySelector(".showdes").value = text;
-      subfolderElement.querySelector(".submit").style.display = "none";
-      subfolderElement.querySelector(".edit").style.display = "block";
-      subfolderElement.querySelector(".hidedisk").style.display = "none";
-      subfolderElement.querySelector(".showdes").style.display = "block";
-    } catch (error) {
-      toast.error("Something went wrong");
-      setIsLoggedIn(false);
-    }
-  };
-
-  const handleSelectChange1 = (event) => {
-    let status = event.target.value;
-    if (folderlist === "Pre Install Folder") {
-      db.updateDoc("Lead", parentfolder, {
-        custom_pre_install_status: status,
-      })
-        .then((doc) => console.log(doc))
-        .catch((error) => console.error(error));
     } else {
-      db.updateDoc("Lead", parentfolder, {
-        custom_post_install_status: status,
-      })
-        .then((doc) => console.log(doc))
-        .catch((error) => console.error(error));
+      toast.error("Update status first");
     }
   };
 
+  const [selectedstatustype, setselectedstatustype] = useState(
+    "No started - Auto generated"
+  );
+  const submitstatus = (e) => {
+    try {
+      e.preventDefault();
+      const form = new FormData(e.target);
+      console.log(form.get("status"));
+      console.log(parentfolder, "parentfolder");
+      if (localStorage.getItem("isLoggedIn") === "true") {
+        if (parentfolder) {
+          if (folderlist === "Pre Install Folder") {
+            db.updateDoc("Lead", parentfolder, {
+              custom_pre_install_status: form.get("status"),
+            })
+              .then((doc) => {
+                setstatusupdate(1);
+                toast.success("Status Updated");
+                localStorage.setItem("isstatusupdate", "true");
+              })
+              .catch((error) => console.error(error));
+          } else {
+            db.updateDoc("Lead", parentfolder, {
+              custom_post_install_status: form.get("status"),
+            })
+              .then((doc) => {
+                setstatusupdate(1);
+                toast.success("Status Updated");
+                localStorage.setItem("isstatusupdate", "true");
+              })
+              .catch((error) => toast.error(error));
+          }
+        } else {
+          alert("Select User First");
+        }
+      } else {
+        toast.error("Login First");
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  };
   const [showSuggestions, setShowSuggestions] = useState(false);
+
+  useEffect(() => {
+    let userlead = parentfolder;
+    let name = folderlist;
+    if (statuscount === 0) {
+      if (name === "Pre Install Folder") {
+        db.getDoc("Lead", userlead).then((res) => {
+          if (res.custom_pre_install_status === "On hold - Site Assessor") {
+            setstatusupdate(0);
+          }
+          setselectedstatustype(res.custom_pre_install_status);
+        });
+      } else {
+        db.getDoc("Lead", userlead).then((res) => {
+          if (res.custom_pre_install_status === "On hold - Site Assessor") {
+            setstatusupdate(0);
+          }
+          setselectedstatustype(res.custom_post_install_status);
+        });
+      }
+    }
+  }, [submitstatus]);
+
+  const changefeild = (e) => {
+    console.log(e.target.value);
+    setselectedstatustype(e.target.value);
+  };
 
   const handleInputChange = (e) => {
     const value = e.target.value;
@@ -641,67 +670,75 @@ function App() {
     subfoldername,
     event
   ) => {
-    console.log("hey");
-    setLoading(true);
-    console.log(subfoldername);
-    const files = Array.from(event.target.files);
+    event.stopPropagation();
+    if (statusupdate) {
+      setLoading(true);
+      console.log(subfoldername);
+      const files = Array.from(event.target.files);
 
-    const compressedFiles = await Promise.all(
-      files.map(async (file) => {
-        const options = {
-          maxSizeMB: 1,
-          maxWidthOrHeight: 1024,
-          useWebWorker: true,
-        };
-        try {
-          const compressedFile = await imageCompression(file, options);
-          return compressedFile;
-        } catch (error) {
-          console.error("Error compressing image:", error);
-          return file;
-        }
-      })
-    );
-
-    const imageObjects = compressedFiles.map((file) => ({
-      src: URL.createObjectURL(file),
-      name: file.name,
-    }));
-    console.log("image added", imageObjects);
-    let updatedSubfolder;
-    const updatedFolders = folders.map((folder, fIndex) => {
-      if (fIndex === folderIndex) {
-        const updatedSubfolders = folder.subfolders.map((subfolder, sIndex) => {
-          if (sIndex === subfolderIndex) {
-            updatedSubfolder = {
-              ...subfolder,
-              images: [...subfolder.images, ...imageObjects],
-            };
-            return updatedSubfolder;
+      const compressedFiles = await Promise.all(
+        files.map(async (file) => {
+          const options = {
+            maxSizeMB: 1,
+            maxWidthOrHeight: 1024,
+            useWebWorker: true,
+          };
+          try {
+            const compressedFile = await imageCompression(file, options);
+            return compressedFile;
+          } catch (error) {
+            console.error("Error compressing image:", error);
+            return file;
           }
-          return subfolder;
-        });
-        const newImageCount = updatedSubfolders.reduce(
-          (count, subfolder) => count + subfolder.images.length,
-          0
-        );
-        return {
-          ...folder,
-          subfolders: updatedSubfolders,
-          imageCount: newImageCount,
-        };
-      }
-      return folder;
-    });
-    setFolders(updatedFolders);
-    if (updatedSubfolder) {
-      await createfolders(updatedSubfolder, folderIndex, subfolderIndex);
-      console.log("Updated Subfolder:", updatedSubfolder);
-    } else {
-      console.error("Updated subfolder not found.");
-    }
+        })
+      );
 
-    setLoading(false);
+      let time = Date.now();
+
+      const imageObjects = compressedFiles.map((file) => ({
+        src: URL.createObjectURL(file),
+        name: `${file.name}-${time}`,
+      }));
+      console.log("image added", imageObjects);
+      let updatedSubfolder;
+      const updatedFolders = folders.map((folder, fIndex) => {
+        if (fIndex === folderIndex) {
+          const updatedSubfolders = folder.subfolders.map(
+            (subfolder, sIndex) => {
+              if (sIndex === subfolderIndex) {
+                updatedSubfolder = {
+                  ...subfolder,
+                  images: [...subfolder.images, ...imageObjects],
+                };
+                return updatedSubfolder;
+              }
+              return subfolder;
+            }
+          );
+          const newImageCount = updatedSubfolders.reduce(
+            (count, subfolder) => count + subfolder.images.length,
+            0
+          );
+          return {
+            ...folder,
+            subfolders: updatedSubfolders,
+            imageCount: newImageCount,
+          };
+        }
+        return folder;
+      });
+      setFolders(updatedFolders);
+      if (updatedSubfolder) {
+        await createfolders(updatedSubfolder, folderIndex, subfolderIndex);
+        console.log("Updated Subfolder:", updatedSubfolder);
+      } else {
+        console.error("Updated subfolder not found.");
+      }
+
+      setLoading(false);
+    } else {
+      toast.error("Update status first");
+    }
   };
 
   const toggleFlag = async (
@@ -712,39 +749,48 @@ function App() {
     event
   ) => {
     event.stopPropagation();
-    setLoading(true);
-    const updatedFolders = folders.map((folder, fIndex) => {
-      if (fIndex === folderIndex) {
-        const updatedSubfolders = folder.subfolders.map((subfolder, sIndex) => {
-          if (sIndex === subfolderIndex) {
-            if (subfolder.name === subfoldername) {
-              const updatedImages = subfolder.images.map((image, iIndex) => {
-                if (iIndex === imageIndex) {
-                  const newFlagValue = !image.flag;
-                  return { ...image, flag: newFlagValue };
+    if (statusupdate) {
+      setLoading(true);
+      const updatedFolders = folders.map((folder, fIndex) => {
+        if (fIndex === folderIndex) {
+          const updatedSubfolders = folder.subfolders.map(
+            (subfolder, sIndex) => {
+              if (sIndex === subfolderIndex) {
+                if (subfolder.name === subfoldername) {
+                  const updatedImages = subfolder.images.map(
+                    (image, iIndex) => {
+                      if (iIndex === imageIndex) {
+                        const newFlagValue = !image.flag;
+                        return { ...image, flag: newFlagValue };
+                      }
+                      return image;
+                    }
+                  );
+                  return { ...subfolder, images: updatedImages };
                 }
-                return image;
-              });
-              return { ...subfolder, images: updatedImages };
+              }
+              return subfolder;
             }
-          }
-          return subfolder;
-        });
-        return { ...folder, subfolders: updatedSubfolders };
+          );
+          return { ...folder, subfolders: updatedSubfolders };
+        }
+        return folder;
+      });
+      setFolders(updatedFolders);
+      const updatedSubfolder = updatedFolders[folderIndex].subfolders.find(
+        (subfolder) => subfolder.name === subfoldername
+      );
+      if (updatedSubfolder) {
+        await createfolders(updatedSubfolder, folderIndex, subfolderIndex);
+        console.log("Updated Subfolder:", updatedSubfolder);
+        toast.success("Successfully Updated");
+      } else {
+        toast.error("Something went wrong");
       }
-      return folder;
-    });
-    setFolders(updatedFolders);
-    const updatedSubfolder = updatedFolders[folderIndex].subfolders.find(
-      (subfolder) => subfolder.name === subfoldername
-    );
-    if (updatedSubfolder) {
-      await createfolders(updatedSubfolder, folderIndex, subfolderIndex);
-      console.log("Updated Subfolder:", updatedSubfolder);
+      setLoading(false);
     } else {
-      console.error(`Subfolder '${subfoldername}' not found.`);
+      toast.error("Update status first");
     }
-    setLoading(false);
   };
 
   const handleEditImage = async (
@@ -755,58 +801,61 @@ function App() {
     event
   ) => {
     event.stopPropagation();
-    setLoading(true);
-
-    const updatedFolders = folders.map((folder, fIndex) => {
-      if (fIndex === folderIndex) {
-        const updatedSubfolders = folder.subfolders.map((subfolder, sIndex) => {
-          if (sIndex === subfolderIndex) {
-            if (subfolder.name === subfoldername) {
-              const updatedImages = subfolder.images.filter(
-                (_, iIndex) => iIndex !== imageIndex
+    if (statusupdate) {
+      setLoading(true);
+      const imageToDelete =
+        folders[folderIndex].subfolders[subfolderIndex].images[imageIndex];
+      const folderName = folders[folderIndex].mainname;
+      const subfolderName =
+        folders[folderIndex].subfolders[subfolderIndex].name;
+      if (imageToDelete.id) {
+        try {
+          await deleteImageFromBackend(
+            folderName,
+            subfolderName,
+            imageToDelete.id
+          );
+          const updatedFolders = folders.map((folder, fIndex) => {
+            if (fIndex === folderIndex) {
+              const updatedSubfolders = folder.subfolders.map(
+                (subfolder, sIndex) => {
+                  if (
+                    sIndex === subfolderIndex &&
+                    subfolder.name === subfoldername
+                  ) {
+                    const updatedImages = subfolder.images.filter(
+                      (_, iIndex) => iIndex !== imageIndex
+                    );
+                    return { ...subfolder, images: updatedImages };
+                  }
+                  return subfolder;
+                }
               );
-              const deletedImage = subfolder.images[imageIndex];
-              console.log(deletedImage, "the image that we have deleted");
-              if (deletedImage.id) {
-                deleteImageFromBackend(
-                  folder.mainname,
-                  subfolder.name,
-                  deletedImage.id
-                );
-              }
-              return { ...subfolder, images: updatedImages };
+              const newImageCount = updatedSubfolders.reduce(
+                (count, subfolder) => count + subfolder.images.length,
+                0
+              );
+
+              return {
+                ...folder,
+                subfolders: updatedSubfolders,
+                imageCount: newImageCount,
+              };
             }
-          }
-          return subfolder;
-        });
-        // Update the imageCount here
-        const newImageCount = updatedSubfolders.reduce(
-          (count, subfolder) => count + subfolder.images.length,
-          0
-        );
-        return {
-          ...folder,
-          subfolders: updatedSubfolders,
-          imageCount: newImageCount,
-        };
+            return folder;
+          });
+          setFolders(updatedFolders);
+          toast.success("Image deleted successfully.");
+        } catch (error) {
+          toast.error("Failed to delete image from backend.");
+        }
       }
-      return folder;
-    });
 
-    setFolders(updatedFolders);
-
-    const updatedSubfolder = updatedFolders[folderIndex].subfolders.find(
-      (subfolder) => subfolder.name === subfoldername
-    );
-    if (updatedSubfolder) {
-      // await createfolders(updatedSubfolder, folderIndex, subfolderIndex);
-      console.log("Updated Subfolder:", updatedSubfolder);
+      setLoading(false);
     } else {
-      console.error(`Subfolder '${subfoldername}' not found.`);
+      toast.error("Update status first");
     }
-    setLoading(false);
   };
-
   const deleteImageFromBackend = async (
     mainFolderName,
     subFolderName,
@@ -814,13 +863,13 @@ function App() {
   ) => {
     try {
       await db.deleteDoc("File", imageId);
-      console.log(`Image ${imageId} deleted successfully.`);
+      return true;
     } catch (error) {
-      console.error(`Error deleting image ${imageId} from the backend:`, error);
+      toast.error("Error deleting image from the backend");
     }
   };
-  const [loading, setLoading] = useState(false);
 
+  const [loading, setLoading] = useState(false);
   const createfolders = async (folders, folderIndex, subfolderIndex) => {
     const feildname = fieldRef.current ? fieldRef.current.value : "";
     try {
@@ -859,6 +908,7 @@ function App() {
         newImages.map((img) => fetchImageBlob(img.src))
       );
 
+      let time = Date.now();
       const images = blobs.map((blob, index) => {
         const img = newImages[index];
         return new File([blob], img.name, { type: blob.type });
@@ -879,7 +929,6 @@ function App() {
           (completedBytes, totalBytes) =>
             console.log(Math.round((completedBytes / totalBytes) * 100))
         );
-        console.log(response.data.message.name);
         const newImageId = response?.data?.message?.name;
         if (newImageId) {
           folders.images.forEach((img) => {
@@ -898,7 +947,6 @@ function App() {
       console.error("Error uploading images:", error);
     }
   };
-
   const openpdf = () => {
     document.querySelector(".pdf").style.display = "block";
     document.querySelector(".main").style.display = "none";
@@ -921,14 +969,11 @@ function App() {
       })
       .catch((error) => console.error(error));
   };
-
   const closepdf = () => {
     document.querySelector(".pdf").style.display = "none";
     document.querySelector(".main").style.display = "block";
   };
-
   const [shrinkStatus, setShrinkStatus] = useState({});
-
   const toggleShrink = (folderIndex, subfolderIndex) => {
     setShrinkStatus((prevState) => ({
       ...prevState,
@@ -936,7 +981,22 @@ function App() {
         !prevState[`${folderIndex}-${subfolderIndex}`],
     }));
   };
-
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    try {
+      const auth = frappe.auth();
+      await auth.loginWithUsernamePassword({ username, password });
+      localStorage.setItem("isLoggedIn", "true");
+      localStorage.setItem("loginTime", new Date().getTime());
+      startLogoutTimer();
+      document.querySelector("#login").style.display = "none";
+      document.querySelector("#allfeild").style.display = "block";
+      console.log(username, "islogin");
+      callUser();
+    } catch (error) {
+      alert("Check the details again");
+    }
+  };
   return (
     <>
       <Toaster />
@@ -1021,7 +1081,7 @@ function App() {
                 marginTop: "10px",
               }}
             >
-              Sign Out
+              {localStorage.getItem("isLoggedIn") ? "Sign out" : "Sign in"}
             </button>
           </ul>
         </div>
@@ -1134,7 +1194,7 @@ function App() {
                 marginTop: "10px",
               }}
             >
-              Sign Out
+              {localStorage.getItem("isLoggedIn") ? "Sign out" : "Sign in"}
             </button>
           </ul>
         </div>
@@ -1275,25 +1335,31 @@ function App() {
             </select>
           </div>
           <div className="statustype">
-            <label htmlFor="feild">Status</label>
-            <select
-              onChange={handleSelectChange1}
-              id="feild"
-              style={{
-                width: "30%",
-                height: "30px",
-                borderRadius: "10px",
-                marginTop: "10px",
-                marginLeft: "10px",
-                marginBottom: "10px",
-              }}
-            >
-              {status.map((folder, index) => (
-                <option key={index} value={folder}>
-                  {folder}
-                </option>
-              ))}
-            </select>
+            <form onSubmit={submitstatus}>
+              <label htmlFor="feild" style={{ marginLeft: "86px" }}>
+                Status
+              </label>
+              <select
+                name="status"
+                onChange={changefeild}
+                value={selectedstatustype}
+                id="feild"
+                className="folderstatus"
+                style={{
+                  width: "30%",
+                  height: "30px",
+                  borderRadius: "10px",
+                  margin: "10px",
+                }}
+              >
+                {status.map((folder, index) => (
+                  <option key={index} value={folder}>
+                    {folder}
+                  </option>
+                ))}
+              </select>
+              <input className="statusbtn" type="submit" />
+            </form>
           </div>
           <button
             className="addfolder"
@@ -1355,6 +1421,7 @@ function App() {
                       boxShadow: "2px 2px 5px rgba(0, 0, 0, 0.2)",
                       margin: "10px",
                       transition: "all 0.3s ease",
+                      minWidth: "95%",
                     }}
                   >
                     <div className="foldername">
@@ -1406,20 +1473,6 @@ function App() {
                           position: "relative",
                         }}
                       >
-                        {/* <input
-                          className="showdes"
-                          readOnly
-                          value={subfolder.discription}
-                          type="text"
-                          style={{
-                            color: "#0039ff",
-                            fontSize: "1em",
-                            border: "none",
-                            outline: "none",
-                            display: "block",
-                          }}
-                          placeholder="Description..."
-                        /> */}
                         <textarea
                           className="showdes"
                           readOnly
@@ -1436,18 +1489,6 @@ function App() {
                           }}
                           placeholder="Description..."
                         />
-                        {/* <input
-                          className="hidedisk"
-                          type="text"
-                          style={{
-                            color: "#0039ff",
-                            fontSize: "1em",
-                            border: "none",
-                            outline: "none",
-                            display: "none",
-                          }}
-                          placeholder="Description..."
-                        /> */}
                         <textarea
                           className="hidedisk"
                           type="text"
@@ -1461,6 +1502,7 @@ function App() {
                             width: "90%",
                           }}
                           placeholder="Description..."
+                          defaultValue={subfolder.discription}
                         />
                         <button
                           className="edit"
@@ -1724,10 +1766,107 @@ function Modal({
     });
   };
 
+  // const downloadimg = (currentImageIndex, event) => {
+  //   event.stopPropagation();
+
+  //   const imageSrc = localImages[currentImageIndex]?.src;
+  //   const imageName =
+  //     localImages[currentImageIndex]?.name || "downloaded_image";
+  //   if (imageSrc && imageName.includes("png")) {
+  //     const img = new Image();
+  //     img.crossOrigin = "anonymous";
+  //     img.src = imageSrc;
+
+  //     img.onload = () => {
+  //       const canvas = document.createElement("canvas");
+  //       canvas.width = img.width;
+  //       canvas.height = img.height;
+  //       const ctx = canvas.getContext("2d");
+  //       ctx.drawImage(img, 0, 0);
+  //       const pngDataUrl = canvas.toDataURL("image/png");
+  //       const link = document.createElement("a");
+  //       link.href = pngDataUrl;
+  //       link.download = `${imageName}.png`;
+  //       document.body.appendChild(link);
+  //       link.click();
+  //       document.body.removeChild(link);
+  //     };
+
+  //     img.onerror = (err) => {
+  //       console.error("Error loading the image", err);
+  //     };
+  //   } else {
+  //     may be its a file not a image
+  //     so whatever it is just download it
+  //   }
+  // };
+
+  const downloadimg = (currentImageIndex, event) => {
+    event.stopPropagation();
+
+    const imageSrc = localImages[currentImageIndex]?.src;
+    const imageName =
+      localImages[currentImageIndex]?.name || "downloaded_image";
+
+    // Check if the image source exists
+    if (imageSrc) {
+      // Check if the source is a PNG image
+      if (imageName.includes("png")) {
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.src = imageSrc;
+
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0);
+          const pngDataUrl = canvas.toDataURL("image/png");
+          const link = document.createElement("a");
+          link.href = pngDataUrl;
+          link.download = `${imageName}.png`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        };
+        img.onerror = (err) => {
+          console.error("Error loading the image", err);
+        };
+      } else {
+        // It's not a PNG image, download it as is
+        const link = document.createElement("a");
+        link.href = imageSrc; // Use the imageSrc directly
+        link.download = imageName; // Set the name for the download
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    } else {
+      console.error("Image source is not available.");
+    }
+  };
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="main-image-container">
+          <button
+            className="flag-button-modal"
+            style={{
+              color: "white",
+              borderRadius: "5px",
+              padding: "2px 5px",
+              cursor: "pointer",
+              marginTop: "10px",
+              position: "absolute",
+              right: "110px",
+              top: "0px",
+            }}
+            onClick={(event) => downloadimg(currentImageIndex, event)}
+          >
+            <i class="fa-solid fa-download"></i>
+          </button>
           <button
             className="flag-button-modal"
             style={{

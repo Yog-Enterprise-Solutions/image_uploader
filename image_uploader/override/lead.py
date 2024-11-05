@@ -2,6 +2,19 @@ import frappe
 import json
 
 @frappe.whitelist()
+def del_folders(doc,method=None):
+
+    existing_parent_folder = frappe.get_all('File', filters={
+        'attached_to_doctype':'Lead',
+        'attached_to_name':doc.name
+    }, fields=['name'])
+    for row in existing_parent_folder:
+        # frappe.db.delete("File", row)
+        frappe.delete_doc("File", {"attached_to_name":doc.name})
+
+    # frappe.throw(f"{existing_parent_folder}")
+
+@frappe.whitelist()
 def create_folders(doc,method=None):
     # --------------------create folder and subfolders for images--------------------------------
         # List of main folder types
@@ -25,7 +38,9 @@ def create_folders(doc,method=None):
             'doctype': 'File',
             'file_name': doc.name,
             'is_folder': 1,
-            'folder': 'Home'
+            'folder': 'Home',
+            'attached_to_doctype':'Lead',
+            'attached_to_name':doc.name
         }).insert()
 
         # Create folders for each type in folder_types
@@ -42,7 +57,9 @@ def create_folders(doc,method=None):
                     'doctype': 'File',
                     'file_name': type,
                     'is_folder': 1,
-                    'folder': f'Home/{doc.name}'
+                    'folder': f'Home/{doc.name}',
+                    'attached_to_doctype':'Lead',
+                    'attached_to_name':doc.name
                 }).insert()
             
                 if type == 'Pre Install Folder':
@@ -57,7 +74,9 @@ def create_folders(doc,method=None):
                                 'doctype': 'File',
                                 'file_name': subfolder['name'],
                                 'is_folder': 1,
-                                'folder': f'Home/{doc.name}/Pre Install Folder'
+                                'folder': f'Home/{doc.name}/Pre Install Folder',
+                                'attached_to_doctype':'Lead',
+                                'attached_to_name':doc.name
                             }).insert()
                             
                         for subsubfolder in subfolder['subfolders']:
@@ -81,7 +100,9 @@ def create_folders(doc,method=None):
                                         'doctype': 'File',
                                         'file_name': subsubfolder,
                                         'is_folder': 1,
-                                        'folder': f'Home/{doc.name}/Pre Install Folder/{subfolder["name"]}'
+                                        'folder': f'Home/{doc.name}/Pre Install Folder/{subfolder["name"]}',
+                                        'attached_to_doctype':'Lead',
+                                        'attached_to_name':doc.name
                                     }).insert()
                 if type == 'Post Install Folder':
                     # Create subfolders for 'Pre Install Folder'
@@ -95,7 +116,9 @@ def create_folders(doc,method=None):
                                 'doctype': 'File',
                                 'file_name': subfolder['name'],
                                 'is_folder': 1,
-                                'folder': f'Home/{doc.name}/Post Install Folder'
+                                'folder': f'Home/{doc.name}/Post Install Folder',
+                                'attached_to_doctype':'Lead',
+                                'attached_to_name':doc.name
                             }).insert()
                             
                         for subsubfolder in subfolder['subfolders']:
@@ -118,5 +141,7 @@ def create_folders(doc,method=None):
                                         'doctype': 'File',
                                         'file_name': subsubfolder,
                                         'is_folder': 1,
-                                        'folder': f'Home/{doc.name}/Post Install Folder/{subfolder["name"]}'
+                                        'folder': f'Home/{doc.name}/Post Install Folder/{subfolder["name"]}',
+                                        'attached_to_doctype':'Lead',
+                                        'attached_to_name':doc.name
                                     }).insert()
