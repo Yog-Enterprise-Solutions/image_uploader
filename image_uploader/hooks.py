@@ -11,7 +11,7 @@ app_license = "mit"
 
 # include js, css files in header of desk.html
 # app_include_css = "/assets/image_uploader/css/image_uploader.css"
-# app_include_js = "/assets/image_uploader/js/image_uploader.js"
+# app_include_js = "/assets/image_uploader/js/image_uploader_permissions.js"
 
 # include js, css files in header of web template
 # web_include_css = "/assets/image_uploader/css/image_uploader.css"
@@ -102,13 +102,17 @@ app_license = "mit"
 # -----------
 # Permissions evaluated in scripted ways
 
-# permission_query_conditions = {
-# 	"Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
-# }
-#
-# has_permission = {
-# 	"Event": "frappe.desk.doctype.event.event.has_permission",
-# }
+permission_query_conditions = {
+	"image printer": "image_uploader.permissions.get_permission_query_conditions",
+	"Image Folder Tree": "image_uploader.permissions.get_permission_query_conditions",
+	"File": "image_uploader.file_permissions.get_file_permission_query_conditions",
+}
+
+has_permission = {
+	"image printer": "image_uploader.permissions.has_permission",
+	"Image Folder Tree": "image_uploader.permissions.has_permission",
+	"File": "image_uploader.file_permissions.has_file_permission",
+}
 
 # DocType Class
 # ---------------
@@ -163,6 +167,21 @@ doc_events = {
 # override_whitelisted_methods = {
 # 	"frappe.desk.doctype.event.event.get_events": "image_uploader.event.get_events"
 # }
+
+# Whitelisted Methods
+# ------------------------------
+# Methods that can be called from the frontend
+
+whitelisted_methods = [
+    "image_uploader.api.spa_auth.login",
+    "image_uploader.api.spa_auth.get_spa_session", 
+    "image_uploader.api.spa_auth.check_permissions",
+    "image_uploader.permissions.get_image_uploader_permissions",
+    "image_uploader.permissions.check_upload_permission",
+    "image_uploader.permissions.check_edit_permission",
+    "image_uploader.file_permissions.check_file_upload_permission",
+    "image_uploader.file_permissions.check_file_edit_permission",
+]
 #
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,
@@ -234,6 +253,22 @@ fixtures=[
             "File-custom_custom_description_","File-custom_flag","File-custom_description"				]
 		]
 	]},
+     {"dt": "Role", "filters": [
+		[
+			"name", "in", [
+            "Image Uploader"				]
+		]
+	]},
+     {"dt": "Custom Role", "filters": [
+		[
+			"role", "in", [
+            "Image Uploader"				]
+		]
+	]},
 ]
 
-website_route_rules = [{'from_route': '/upload_image/<path:app_path>', 'to_route': 'upload_image'},]
+# Website Route Rules
+website_route_rules = [
+    {'from_route': '/upload_image', 'to_route': 'upload_image'},
+]
+
