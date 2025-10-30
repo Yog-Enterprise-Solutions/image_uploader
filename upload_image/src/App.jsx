@@ -258,7 +258,7 @@ function App() {
                 
                 // Get existing images from this subfolder
                 const existingImages = await db.getDocList("File", {
-                  fields: ["name", "file_name", "file_url", "flag", "custom_custom_description_"],
+                  fields: ["name", "file_name", "file_url", "flag"],
                   filters: [
                     ["folder", "=", properFolderPath],
                     ["is_folder", "=", 0]
@@ -272,13 +272,34 @@ function App() {
                   id: img.name,
                   name: img.file_name,
                   src: img.file_url,
-                  flag: img.flag || false,
-                  custom_custom_description_: img.custom_custom_description_ || ""
+                  flag: img.flag || false
                 }));
+                
+                // Get the subfolder description from the folder itself
+                let subfolderDescription = "";
+                try {
+                  const subfolderDoc = await db.getDocList("File", {
+                    fields: ["description"],
+                    filters: [
+                      ["folder", "=", folderParts.slice(0, -1).join('/')],
+                      ["file_name", "=", subfolder.name],
+                      ["is_folder", "=", 1]
+                    ],
+                    limit: 1
+                  });
+                  
+                  if (subfolderDoc.length > 0) {
+                    subfolderDescription = subfolderDoc[0].description || "";
+                    console.log(`Loaded description for ${subfolder.name}: "${subfolderDescription}"`);
+                  }
+                } catch (error) {
+                  console.error(`Error loading description for ${subfolder.name}:`, error);
+                }
                 
                 return {
                   ...subfolder,
-                  images: imageObjects
+                  images: imageObjects,
+                  description: subfolderDescription
                 };
               } catch (error) {
                 console.error(`Error loading images for ${subfolder.name}:`, error);
@@ -386,12 +407,12 @@ function App() {
           mainname: mainHeading,
           minimized: false,
           subfolders: subheadings.map(
-            ([subheading, value, custom_custom_description_], subIndex) => ({
+            ([subheading, value, description], subIndex) => ({
               id: mainIndex * 10 + subIndex + 1,
               name: subheading,
               value: value,
               images: [],
-              custom_custom_description_: custom_custom_description_,
+              description: description || "",
             })
           ),
         };
@@ -480,7 +501,7 @@ function App() {
         const allSubfolders = await Promise.all(
           mainFolders.map(async (mainFolder) => {
             const subFolders = await db.getDocList("File", {
-              fields: ["name", "file_name", "custom_custom_description_"],
+              fields: ["name", "file_name"],
               filters: [
                 [
                   "folder",
@@ -642,7 +663,7 @@ function App() {
             const allSubfolders = await Promise.all(
               mainFolders.map(async (mainFolder) => {
                 const subFolders = await db.getDocList("File", {
-                  fields: ["name", "file_name", "custom_custom_description_"],
+                  fields: ["name", "file_name"],
                   filters: [
                     [
                       "folder",
@@ -661,7 +682,6 @@ function App() {
                       fields: [
                         "name",
                         "file_name",
-                        "custom_custom_description_",
                         "file_url",
                         "flag",
                       ],
@@ -780,18 +800,75 @@ function App() {
     setCurrentSubFolderIndex(subfolderIndex);
   };
 
-  const handleDescriptionChange = (
+  const handleDescriptionChange = async (
     folderIndex,
     subfolderIndex,
-    custom_custom_description_
+    description
   ) => {
+    const subfolder = folders[folderIndex].subfolders[subfolderIndex];
+    const existingDescription = subfolder.description || "";
+    
+    // Check permissions: Image Uploader can only ADD (when empty), not EDIT existing
+    // Site Assessor can always edit
+    if (!userPermissions.can_delete && existingDescription && existingDescription.trim() !== "") {
+      // Image Uploader trying to edit existing description - prevent it
+      alert("Only Site Assessors can edit existing descriptions. You can only add descriptions when the field is empty.");
+      // Revert to original value
+      setFolders((prevFolders) => {
+        const updatedFolders = [...prevFolders];
+        updatedFolders[folderIndex].subfolders[
+          subfolderIndex
+        ].description = existingDescription;
+        return updatedFolders;
+      });
+      return;
+    }
+    
+    // Update the state immediately for UI responsiveness
     setFolders((prevFolders) => {
       const updatedFolders = [...prevFolders];
       updatedFolders[folderIndex].subfolders[
         subfolderIndex
-      ].custom_custom_description_ = custom_custom_description_;
+      ].description = description;
       return updatedFolders;
     });
+
+    // Save to database
+    try {
+      const feildname = fieldRef.current ? fieldRef.current.value : "";
+      const mainFolderName = folders[folderIndex]?.mainname;
+      
+      // Construct the folder path for the subfolder
+      const folderParts = ['Home'];
+      if (parentfolder) folderParts.push(parentfolder);
+      if (feildname) folderParts.push(feildname);
+      if (mainFolderName) folderParts.push(mainFolderName);
+      
+      const parentFolderPath = folderParts.join('/');
+      
+      // Find the subfolder document in the database
+      const subfolderDoc = await db.getDocList("File", {
+        fields: ["name"],
+        filters: [
+          ["folder", "=", parentFolderPath],
+          ["file_name", "=", subfolder.name],
+          ["is_folder", "=", 1]
+        ],
+        limit: 1
+      });
+      
+      if (subfolderDoc.length > 0) {
+        // Update the existing subfolder document
+        await db.updateDoc("File", subfolderDoc[0].name, {
+          description: description
+        });
+        console.log(`Description saved for ${subfolder.name}: "${description}"`);
+      } else {
+        console.log(`Subfolder document not found for ${subfolder.name}`);
+      }
+    } catch (error) {
+      console.error("Error saving description:", error);
+    }
   };
 
   const addFolder = () => {
@@ -811,7 +888,6 @@ function App() {
       src: URL.createObjectURL(file),
       name: file.name,
       flag: false,
-      custom_custom_description_: ""
     }));
     console.log("image added", imageObjects);
     let updatedSubfolder;
@@ -1111,7 +1187,7 @@ function App() {
     
     try {
       const existingImagesInSubFolder = await db.getDocList("File", {
-        fields: ["name", "file_name", "flag", "custom_custom_description_"],
+        fields: ["name", "file_name", "flag"],
         filters: [["folder", "=", properFolderPath]],
       });
 
@@ -1157,7 +1233,6 @@ function App() {
         doctype: "File",
         docname: "",
         fieldname: "file",
-        custom_custom_description_: subfolder.custom_custom_description_ || "",
       };
 
       for (const image of images) {
@@ -1773,14 +1848,29 @@ function App() {
                         type="text"
                         placeholder="Enter Description"
                         className="foldername-input"
-                        value={subfolder.custom_custom_description_ || ""}
+                        value={subfolder.description || ""}
+                        readOnly={
+                          // Image Uploader can only ADD description (when empty), not EDIT existing
+                          // Site Assessor can always edit
+                          !userPermissions.can_delete && 
+                          (subfolder.description && subfolder.description.trim() !== "")
+                        }
                         style={{
-                          backgroundColor: "lightblue",
+                          backgroundColor: 
+                            (!userPermissions.can_delete && 
+                             (subfolder.description && subfolder.description.trim() !== ""))
+                              ? "#e0e0e0" // Grey when read-only
+                              : "lightblue",
                           borderRadius: "5px",
                           margin: "5px 0",
                           padding: "5px",
                           border: "1px solid #ccc",
-                          width: "100%"
+                          width: "100%",
+                          cursor: 
+                            (!userPermissions.can_delete && 
+                             (subfolder.description && subfolder.description.trim() !== ""))
+                              ? "not-allowed"
+                              : "text"
                         }}
                         onChange={(e) =>
                           handleDescriptionChange(
@@ -1788,6 +1878,12 @@ function App() {
                             subfolderIndex,
                             e.target.value
                           )
+                        }
+                        title={
+                          (!userPermissions.can_delete && 
+                           (subfolder.description && subfolder.description.trim() !== ""))
+                            ? "Only Site Assessors can edit existing descriptions"
+                            : ""
                         }
                       />
                       {subfolder.images.length === 0 && (

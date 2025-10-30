@@ -4,33 +4,10 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/assets/image_uploader/upload_image/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-    <meta http-equiv="Pragma" content="no-cache" />
-    <meta http-equiv="Expires" content="0" />
     <title>Image Uploader</title>
-    <script type="module" crossorigin src="/assets/image_uploader/upload_image/assets/index-DfXEQz3H.js?v=10"></script>
-    <link rel="stylesheet" crossorigin href="/assets/image_uploader/upload_image/assets/index-Bx2XunG5.css?v=10">
-    <link rel="manifest" href="/assets/image_uploader/upload_image/manifest.webmanifest">
-    <script id="vite-plugin-pwa:register-sw" src="/assets/image_uploader/upload_image/registerSW.js"></script>
-    <!-- API Interception Script -->
-    <script>
-      console.log('Setting up API interception...');
-      // Intercept fetch requests to external APIs and redirect to local Frappe instance
-      const originalFetch = window.fetch;
-      window.fetch = function(url, options = {}) {
-        // Check if the URL is an external API call
-        if (typeof url === 'string' && url.startsWith('http') && !url.includes(window.location.hostname)) {
-          console.log('Intercepting external API call:', url);
-          // Redirect to local Frappe instance
-          const localUrl = url.replace(/^https?:\/\/[^\/]+/, window.location.origin);
-          console.log('Redirecting to:', localUrl);
-          return originalFetch(localUrl, options);
-        }
-        return originalFetch(url, options);
-      };
-      console.log('✅ API interception setup complete');
-    </script>
-  </head>
+    <script type="module" crossorigin src="/assets/image_uploader/upload_image/assets/index-Cfs435It.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/image_uploader/upload_image/assets/index-Bx2XunG5.css">
+  <link rel="manifest" href="/assets/image_uploader/upload_image/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/assets/image_uploader/upload_image/registerSW.js"></script></head>
   <body>
     <div id="root"></div>
   </body>

@@ -1,0 +1,74 @@
+{% extends "templates/web.html" %}
+
+{% block title %}{{ _("Image Uploader") }}{% endblock %}
+
+{% block page_content %}
+<div class="external-app-container">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="page-header">
+                <h1>{{ _("Image Uploader") }}</h1>
+                <p class="text-muted">{{ _("External Image Uploader Application") }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4>{{ _("Access Image Uploader") }}</h4>
+                </div>
+                <div class="card-body">
+                    <p>{{ _("Click the button below to access the external Image Uploader application.") }}</p>
+                    <a href="http://localhost:8080" target="_blank" class="btn btn-primary btn-lg">
+                        <i class="fa fa-upload"></i> {{ _("Open Image Uploader") }}
+                    </a>
+                    <p class="text-muted mt-3">
+                        <small>{{ _("The Image Uploader will open in a new tab.") }}</small>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="alert alert-info">
+                <h5>{{ _("Note:") }}</h5>
+                <p>{{ _("The Image Uploader is hosted separately and will open in a new window. Your Frappe session will be maintained for authentication.") }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.external-app-container {
+    padding: 20px;
+}
+
+.card {
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #ddd;
+    padding: 15px;
+}
+
+.card-body {
+    padding: 20px;
+}
+
+.btn-lg {
+    padding: 12px 24px;
+    font-size: 16px;
+}
+</style>
+{% endblock %}
+
+
+
