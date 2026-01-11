@@ -19,13 +19,16 @@ The module is optimized for **site inspections, documentation workflows, and rol
 ---
 
 ## 🧩 Architecture Summary
-React SPA (Frontend)
-↓
-Comet React SDK
-↓
-Dopio Configuration Layer
-↓
-Frappe / ERPNext Backend
+flowchart TD
+    A[User / ERPNext Screen] --> B[ReactJS SPA]
+    B --> C[Comet React SDK]
+    C --> D[Dopio Configuration Layer]
+    D --> E[Frappe API Layer]
+    E --> F[ERPNext Backend]
+    F --> G[Database & File Storage]
+
+    E -->|Permissions & Workflow| F
+    F -->|Status Updates| B
 
 
 ---
