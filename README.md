@@ -23,7 +23,7 @@ User / ERPNext UI
         |
     ReactJS SPA
         |
-   Comet React SDK
+   Frappe React SDK
         |
      Dopio Layer
         |
