@@ -4,21 +4,7 @@ import { FrappeApp } from "frappe-js-sdk";
 import LoaderComponent from "./Loader";
 
 function App() {
-  // const getSiteName = () => {
-  //   if (
-  //     window.frappe?.boot?.versions?.frappe &&
-  //     (window.frappe.boot.versions.frappe.startsWith("15") ||
-  //       window.frappe.boot.versions.frappe.startsWith("16"))
-  //   ) {
-  //     console.log(import.meta.env.VITE_SITE_NAME);
-  //     return window.frappe?.boot?.sitename ?? import.meta.env.VITE_SITE_NAME;
-  //   }
-  //   return import.meta.env.VITE_SITE_NAME;
-  // };
-
-  const frappeUrl = "https://yash.tranqwality.com/";
-  // const frappeUrl = "https://erp.solarblocks.us/";
-
+  const frappeUrl = window.location.origin + "/";
   const siteurl = frappeUrl;
   const frappe = new FrappeApp(siteurl);
   const auth = frappe.auth();
@@ -56,30 +42,134 @@ function App() {
   const [foldername, setfoldername] = useState("");
   const [usercountry, setusercountry] = useState("");
   const [userstreet, setuserstreet] = useState("");
+  const [userPermissions, setUserPermissions] = useState({
+    can_upload: false,
+    can_edit: false,
+    can_delete: false,
+    can_view: true
+  });
+  const [hasAccess, setHasAccess] = useState(false);
+  const [accessMessage, setAccessMessage] = useState("");
   useEffect(() => {
-    const storedIsLoggedIn = localStorage.getItem("isLoggedIn");
-    if (storedIsLoggedIn === "true") {
-      setIsLoggedIn(true);
-      checkLogoutTimer();
-      document.querySelector("#login").style.display = "none";
-      document.querySelector("#allfeild").style.display = "block";
-    }
+    const checkFrappeAuth = async () => {
+      try {
+        // Check if user is already logged in to Frappe
+        const session = await frappe.call('image_uploader.api.spa_auth.get_spa_session');
+        if (session && session.user && session.user !== 'Guest') {
+          console.log('User already logged in to Frappe:', session.user);
+          
+          // Check permissions using the same API that works for upload button
+          try {
+            const response = await fetch('/api/method/image_uploader.api.spa_auth.check_permissions', {
+              method: 'GET',
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json',
+              }
+            });
+            
+            if (response.ok) {
+              const result = await response.json();
+              const permissions = result.message || result;
+              
+              // Check if user has any upload permissions (same logic as upload button)
+              if (permissions.can_upload || permissions.can_edit || permissions.can_delete) {
+                console.log('User has access based on permissions:', permissions);
+                setIsLoggedIn(true);
+                setHasAccess(true);
+                setAccessMessage("Access granted");
+                document.querySelector("#login").style.display = "none";
+                document.querySelector("#allfeild").style.display = "block";
+                document.querySelector("#access-denied").style.display = "none";
+                return;
+              } else {
+                console.log('User does not have required permissions:', permissions);
+                setHasAccess(false);
+                setAccessMessage("Access denied. You need Image Uploader or Site Assessor role to access this application.");
+                document.querySelector("#login").style.display = "none";
+                document.querySelector("#allfeild").style.display = "none";
+                document.querySelector("#access-denied").style.display = "block";
+                return;
+              }
+            }
+          } catch (permError) {
+            console.log('Error checking permissions:', permError);
+          }
+        }
+      } catch (error) {
+        console.log('Not logged in to Frappe, showing login form');
+      }
+      
+      // Fallback to localStorage check
+      const storedIsLoggedIn = localStorage.getItem("isLoggedIn");
+      if (storedIsLoggedIn === "true") {
+        setIsLoggedIn(true);
+        checkLogoutTimer();
+        document.querySelector("#login").style.display = "none";
+        document.querySelector("#allfeild").style.display = "block";
+      }
+    };
+    
+    checkFrappeAuth();
   }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    console.log('🔍 Login attempt started for user:', username);
     try {
       const auth = frappe.auth();
       await auth.loginWithUsernamePassword({ username, password });
 
-      localStorage.setItem("isLoggedIn", "true");
-      localStorage.setItem("loginTime", new Date().getTime());
-      setIsLoggedIn(true);
-      startLogoutTimer();
-      document.querySelector("#login").style.display = "none";
-      document.querySelector("#allfeild").style.display = "block";
+      console.log('🔍 Login successful, checking permissions...');
+      
+      // Check permissions using the same API that works for upload button
+      try {
+        const response = await fetch('/api/method/image_uploader.api.spa_auth.check_permissions', {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          const permissions = result.message || result;
+          
+          console.log('🔍 Permissions result:', permissions);
+          
+          // Check if user has any upload permissions (same logic as upload button)
+          if (permissions.can_upload || permissions.can_edit || permissions.can_delete) {
+            console.log('🔍 User has access based on permissions:', permissions);
+            localStorage.setItem("isLoggedIn", "true");
+            localStorage.setItem("loginTime", new Date().getTime());
+            setIsLoggedIn(true);
+            setHasAccess(true);
+            setAccessMessage("Access granted");
+            startLogoutTimer();
+            document.querySelector("#login").style.display = "none";
+            document.querySelector("#allfeild").style.display = "block";
+            document.querySelector("#access-denied").style.display = "none";
+          } else {
+            console.log('🔍 User does not have required permissions:', permissions);
+            setHasAccess(false);
+            setAccessMessage("Access denied. You need Image Uploader or Site Assessor role to access this application.");
+            document.querySelector("#login").style.display = "none";
+            document.querySelector("#allfeild").style.display = "none";
+            document.querySelector("#access-denied").style.display = "block";
+          }
+        } else {
+          console.log('🔍 Permission check failed');
+          alert("Login successful but unable to verify permissions. Please contact administrator.");
+        }
+      } catch (permError) {
+        console.error('🔍 Error checking permissions after login:', permError);
+        alert("Login successful but unable to verify permissions. Please contact administrator.");
+      }
+      
     } catch (error) {
-      console.error("Login failed:", error);
+      console.error("🔍 Login failed:", error);
+      alert("Login failed. Please check your credentials.");
     }
   };
 
@@ -137,6 +227,100 @@ function App() {
   const [inputValue, setInputValue] = useState(
     firstName.length > 0 ? firstName : ""
   );
+
+  const loadExistingImages = async () => {
+    try {
+      console.log("Loading existing images...");
+      console.log("Current parentfolder:", parentfolder);
+      console.log("Current fieldRef value:", fieldRef.current?.value);
+      console.log("Current folders:", folders.length);
+      
+      if (!parentfolder || !fieldRef.current?.value) {
+        console.log("Missing parentfolder or fieldRef, skipping image load");
+        return;
+      }
+      
+      // Get all folders and their subfolders
+      const updatedFolders = await Promise.all(
+        folders.map(async (folder) => {
+          const updatedSubfolders = await Promise.all(
+            folder.subfolders.map(async (subfolder) => {
+              try {
+                // Construct the proper folder path
+                const folderParts = ['Home'];
+                if (parentfolder) folderParts.push(parentfolder);
+                if (fieldRef.current?.value) folderParts.push(fieldRef.current.value);
+                if (folder.mainname) folderParts.push(folder.mainname);
+                if (subfolder.name) folderParts.push(subfolder.name);
+                
+                const properFolderPath = folderParts.join('/');
+                console.log(`Loading images for path: ${properFolderPath}`);
+                
+                // Get existing images from this subfolder
+                const existingImages = await db.getDocList("File", {
+                  fields: ["name", "file_name", "file_url", "flag"],
+                  filters: [
+                    ["folder", "=", properFolderPath],
+                    ["is_folder", "=", 0]
+                  ],
+                });
+                
+                console.log(`Found ${existingImages.length} images for ${subfolder.name}`);
+                
+                // Convert to image objects
+                const imageObjects = existingImages.map(img => ({
+                  id: img.name,
+                  name: img.file_name,
+                  src: img.file_url,
+                  flag: img.flag || false
+                }));
+                
+                // Get the subfolder description from the folder itself
+                let subfolderDescription = "";
+                try {
+                  const subfolderDoc = await db.getDocList("File", {
+                    fields: ["description"],
+                    filters: [
+                      ["folder", "=", folderParts.slice(0, -1).join('/')],
+                      ["file_name", "=", subfolder.name],
+                      ["is_folder", "=", 1]
+                    ],
+                    limit: 1
+                  });
+                  
+                  if (subfolderDoc.length > 0) {
+                    subfolderDescription = subfolderDoc[0].description || "";
+                    console.log(`Loaded description for ${subfolder.name}: "${subfolderDescription}"`);
+                  }
+                } catch (error) {
+                  console.error(`Error loading description for ${subfolder.name}:`, error);
+                }
+                
+                return {
+                  ...subfolder,
+                  images: imageObjects,
+                  description: subfolderDescription
+                };
+              } catch (error) {
+                console.error(`Error loading images for ${subfolder.name}:`, error);
+                return subfolder;
+              }
+            })
+          );
+          
+          return {
+            ...folder,
+            subfolders: updatedSubfolders
+          };
+        })
+      );
+      
+      setFolders(updatedFolders);
+      console.log("Existing images loaded successfully");
+    } catch (error) {
+      console.error("Error loading existing images:", error);
+    }
+  };
 
   const initializeFolders = async (e) => {
     try {
@@ -223,12 +407,12 @@ function App() {
           mainname: mainHeading,
           minimized: false,
           subfolders: subheadings.map(
-            ([subheading, value, custom_custom_description_], subIndex) => ({
+            ([subheading, value, description], subIndex) => ({
               id: mainIndex * 10 + subIndex + 1,
               name: subheading,
               value: value,
               images: [],
-              custom_custom_description_: custom_custom_description_,
+              description: description || "",
             })
           ),
         };
@@ -242,6 +426,14 @@ function App() {
   useEffect(() => {
     initializeFolders();
   }, [fieldRef.current?.value]);
+
+  // Load existing images when folders are loaded and user is logged in
+  useEffect(() => {
+    if (isLoggedIn && folders.length > 0 && parentfolder && fieldRef.current?.value) {
+      console.log("Triggering loadExistingImages...");
+      loadExistingImages();
+    }
+  }, [isLoggedIn, folders.length, parentfolder, fieldRef.current?.value]);
 
   useEffect(() => {
     if (!userManuallyChanged && invoiceList.length > 0) {
@@ -309,7 +501,7 @@ function App() {
         const allSubfolders = await Promise.all(
           mainFolders.map(async (mainFolder) => {
             const subFolders = await db.getDocList("File", {
-              fields: ["name", "file_name", "custom_custom_description_"],
+              fields: ["name", "file_name"],
               filters: [
                 [
                   "folder",
@@ -471,7 +663,7 @@ function App() {
             const allSubfolders = await Promise.all(
               mainFolders.map(async (mainFolder) => {
                 const subFolders = await db.getDocList("File", {
-                  fields: ["name", "file_name", "custom_custom_description_"],
+                  fields: ["name", "file_name"],
                   filters: [
                     [
                       "folder",
@@ -490,7 +682,6 @@ function App() {
                       fields: [
                         "name",
                         "file_name",
-                        "custom_custom_description_",
                         "file_url",
                         "flag",
                       ],
@@ -609,6 +800,77 @@ function App() {
     setCurrentSubFolderIndex(subfolderIndex);
   };
 
+  const handleDescriptionChange = async (
+    folderIndex,
+    subfolderIndex,
+    description
+  ) => {
+    const subfolder = folders[folderIndex].subfolders[subfolderIndex];
+    const existingDescription = subfolder.description || "";
+    
+    // Check permissions: Image Uploader can only ADD (when empty), not EDIT existing
+    // Site Assessor can always edit
+    if (!userPermissions.can_delete && existingDescription && existingDescription.trim() !== "") {
+      // Image Uploader trying to edit existing description - prevent it
+      alert("Only Site Assessors can edit existing descriptions. You can only add descriptions when the field is empty.");
+      // Revert to original value
+      setFolders((prevFolders) => {
+        const updatedFolders = [...prevFolders];
+        updatedFolders[folderIndex].subfolders[
+          subfolderIndex
+        ].description = existingDescription;
+        return updatedFolders;
+      });
+      return;
+    }
+    
+    // Update the state immediately for UI responsiveness
+    setFolders((prevFolders) => {
+      const updatedFolders = [...prevFolders];
+      updatedFolders[folderIndex].subfolders[
+        subfolderIndex
+      ].description = description;
+      return updatedFolders;
+    });
+
+    // Save to database
+    try {
+      const feildname = fieldRef.current ? fieldRef.current.value : "";
+      const mainFolderName = folders[folderIndex]?.mainname;
+      
+      // Construct the folder path for the subfolder
+      const folderParts = ['Home'];
+      if (parentfolder) folderParts.push(parentfolder);
+      if (feildname) folderParts.push(feildname);
+      if (mainFolderName) folderParts.push(mainFolderName);
+      
+      const parentFolderPath = folderParts.join('/');
+      
+      // Find the subfolder document in the database
+      const subfolderDoc = await db.getDocList("File", {
+        fields: ["name"],
+        filters: [
+          ["folder", "=", parentFolderPath],
+          ["file_name", "=", subfolder.name],
+          ["is_folder", "=", 1]
+        ],
+        limit: 1
+      });
+      
+      if (subfolderDoc.length > 0) {
+        // Update the existing subfolder document
+        await db.updateDoc("File", subfolderDoc[0].name, {
+          description: description
+        });
+        console.log(`Description saved for ${subfolder.name}: "${description}"`);
+      } else {
+        console.log(`Subfolder document not found for ${subfolder.name}`);
+      }
+    } catch (error) {
+      console.error("Error saving description:", error);
+    }
+  };
+
   const addFolder = () => {
     setFolders([...folders, { id: Date.now(), name: "", images: [] }]);
   };
@@ -625,6 +887,7 @@ function App() {
     const imageObjects = files.map((file) => ({
       src: URL.createObjectURL(file),
       name: file.name,
+      flag: false,
     }));
     console.log("image added", imageObjects);
     let updatedSubfolder;
@@ -714,6 +977,13 @@ function App() {
     event
   ) => {
     event.stopPropagation();
+    
+    // Check if user has delete permission
+    if (!userPermissions.can_delete) {
+      alert('You do not have permission to delete images. Please contact your administrator.');
+      return;
+    }
+    
     setLoading(true);
 
     const updatedFolders = folders.map((folder, fIndex) => {
@@ -781,21 +1051,151 @@ function App() {
   };
   const [loading, setLoading] = useState(false);
 
-  const createfolders = async (folders, folderIndex, subfolderIndex) => {
+  // Check user permissions when app loads
+  useEffect(() => {
+    console.log('🔍 Permission useEffect triggered, isLoggedIn:', isLoggedIn);
+    
+    const checkPermissions = async () => {
+      try {
+        console.log('🔍 Checking permissions for logged-in user...');
+        
+        // Use direct HTTP calls instead of Frappe SDK
+        try {
+          console.log('🔍 Making direct HTTP call to check permissions...');
+          const response = await fetch('/api/method/image_uploader.api.spa_auth.check_permissions', {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+            }
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            console.log('🔍 Direct HTTP permissions result:', result);
+            
+            // Handle the response structure - permissions might be in result.message
+            const permissions = result.message || result;
+            console.log('🔍 Extracted permissions:', permissions);
+            setUserPermissions(permissions);
+          } else {
+            console.log('🔍 HTTP call failed, setting restricted permissions');
+            setUserPermissions({
+              can_upload: false,
+              can_edit: false,
+              can_delete: false,
+              can_view: true
+            });
+          }
+        } catch (error) {
+          console.log('🔍 HTTP call error, setting restricted permissions:', error);
+          setUserPermissions({
+            can_upload: false,
+            can_edit: false,
+            can_delete: false,
+            can_view: true
+          });
+        }
+      } catch (error) {
+        console.error('🔍 Error checking permissions:', error);
+        // Default to restricted permissions if check fails
+        setUserPermissions({
+          can_upload: false,
+          can_edit: false,
+          can_delete: false,
+          can_view: true
+        });
+      }
+    };
+
+    if (isLoggedIn) {
+      console.log('🔍 User is logged in, calling checkPermissions in 100ms...');
+      // Add a small delay to ensure session is fully established
+      setTimeout(() => {
+        checkPermissions();
+      }, 100);
+    } else {
+      console.log('🔍 User is not logged in, skipping permission check');
+    }
+  }, [isLoggedIn]);
+
+  // Function to ensure folder structure exists
+  const ensureFolderExists = async (folderPath) => {
+    try {
+      console.log("Ensuring folder exists:", folderPath);
+      
+      // Split the path into parts
+      const pathParts = folderPath.split('/');
+      
+      // Build the path incrementally and create each folder if it doesn't exist
+      for (let i = 1; i < pathParts.length; i++) {
+        const currentPath = pathParts.slice(0, i + 1).join('/');
+        const folderName = pathParts[i];
+        const parentPath = pathParts.slice(0, i).join('/');
+        
+        // Check if this folder exists
+        const existingFolder = await db.getDocList("File", {
+          fields: ["name"],
+          filters: [
+            ["folder", "=", parentPath],
+            ["file_name", "=", folderName],
+            ["is_folder", "=", 1]
+          ],
+          limit: 1
+        });
+        
+        if (existingFolder.length === 0) {
+          console.log("Creating folder:", currentPath);
+          // Create the folder
+          await db.createDoc("File", {
+            file_name: folderName,
+            is_folder: 1,
+            folder: parentPath
+          });
+        }
+      }
+      
+      console.log("Folder structure ensured for:", folderPath);
+    } catch (error) {
+      console.error("Error ensuring folder exists:", error);
+      throw error;
+    }
+  };
+
+  const createfolders = async (subfolder, folderIndex, subfolderIndex) => {
     const feildname = fieldRef.current ? fieldRef.current.value : "";
     console.log(feildname, "feildname");
-    console.log(folders, "this is tyhe ashdasjkiuf");
+    console.log(subfolder, "this is the subfolder");
+    
+    // Get the main folder name from the current folders state
+    const mainFolderName = folders[folderIndex]?.mainname;
+    console.log("Main folder name:", mainFolderName);
+    
+    // Construct the proper folder path for this subfolder
+    // Handle empty parentfolder to avoid double slashes
+    const folderParts = ['Home'];
+    if (parentfolder) folderParts.push(parentfolder);
+    if (feildname) folderParts.push(feildname);
+    if (mainFolderName) folderParts.push(mainFolderName);
+    if (subfolder.name) folderParts.push(subfolder.name);
+    
+    const properFolderPath = folderParts.join('/');
+    console.log("Proper folder path:", properFolderPath);
+    
+    // Ensure folder structure exists before uploading files
+    await ensureFolderExists(properFolderPath);
+    
     try {
       const existingImagesInSubFolder = await db.getDocList("File", {
-        fields: ["name", "file_name", "flag", "custom_custom_description_"],
-        filters: [["folder", "=", `${folders.id}`]],
+        fields: ["name", "file_name", "flag"],
+        filters: [["folder", "=", properFolderPath]],
       });
 
       const existingImageNames = existingImagesInSubFolder.map(
         (img) => img.file_name
       );
       for (const existingImage of existingImagesInSubFolder) {
-        const correspondingNewImage = folders.images.find(
+        const correspondingNewImage = subfolder.images.find(
           (img) => img.name === existingImage.file_name
         );
         if (correspondingNewImage) {
@@ -809,7 +1209,7 @@ function App() {
         }
       }
 
-      const newImages = folders.images.filter(
+      const newImages = subfolder.images.filter(
         (image) => !existingImageNames.includes(image.name)
       );
 
@@ -829,10 +1229,10 @@ function App() {
 
       const fileArgs = {
         flag: true,
-        folder: `${folders.id}`,
-        doctype: "User",
-        docname: "Administrator",
-        fieldname: "image",
+        folder: properFolderPath, // Use the proper folder path
+        doctype: "File",
+        docname: "",
+        fieldname: "file",
       };
 
       for (const image of images) {
@@ -845,7 +1245,7 @@ function App() {
         console.log(response.data.message.name);
         const newImageId = response?.data?.message?.name;
         if (newImageId) {
-          folders.images.forEach((img) => {
+          subfolder.images.forEach((img) => {
             if (img.name === image.name) {
               img.id = newImageId;
             }
@@ -856,7 +1256,7 @@ function App() {
       // Update the state with new image IDs
       setFolders((prevFolders) => {
         const updatedFolders = [...prevFolders];
-        updatedFolders[folderIndex].subfolders[subfolderIndex] = folders;
+        updatedFolders[folderIndex].subfolders[subfolderIndex] = subfolder;
         return updatedFolders;
       });
     } catch (error) {
@@ -907,14 +1307,6 @@ function App() {
         }}
         className="login"
       >
-        <div
-          id="login"
-          style={{
-            backgroundColor: "#f8f9fa",
-            display: "block",
-          }}
-          className="login"
-        >
           <div
             className="Contaner"
             style={{
@@ -975,11 +1367,73 @@ function App() {
             </main>
           </div>
         </div>
+      
+      {/* Access Denied Component */}
+      <div
+        id="access-denied"
+        style={{
+          backgroundColor: "#f8f9fa",
+          display: "none",
+        }}
+        className="access-denied"
+      >
+        <div
+          className="Container"
+          style={{
+            width: "100%",
+            height: "100vh",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <main
+            className="access-denied-content"
+            style={{
+              maxWidth: "500px",
+              padding: "40px",
+              borderRadius: "10px",
+              boxShadow: "0 4px 6px rgba(0,0,0,0.1)",
+              textAlign: "center",
+              backgroundColor: "white",
+            }}
+          >
+            <div style={{ fontSize: "48px", marginBottom: "20px" }}>🚫</div>
+            <h1 style={{ color: "#dc3545", marginBottom: "20px" }}>
+              Access Denied
+            </h1>
+            <p style={{ fontSize: "16px", color: "#6c757d", marginBottom: "30px" }}>
+              {accessMessage || "You need Image Uploader or Site Assessor role to access this application."}
+            </p>
+            <div style={{ fontSize: "14px", color: "#6c757d" }}>
+              <p>Please contact your administrator to request access.</p>
+              <p>Required roles: <strong>Image Uploader</strong> or <strong>Site Assessor</strong></p>
+            </div>
+            <button
+              onClick={() => {
+                document.querySelector("#access-denied").style.display = "none";
+                document.querySelector("#login").style.display = "block";
+              }}
+              style={{
+                marginTop: "20px",
+                padding: "10px 20px",
+                backgroundColor: "#007bff",
+                color: "white",
+                border: "none",
+                borderRadius: "5px",
+                cursor: "pointer",
+              }}
+            >
+              Try Different Account
+            </button>
+          </main>
+        </div>
       </div>
+      
       <div
         id="allfeild"
         className="allfeild"
-        style={{ display: isLoggedIn ? "block" : "none" }}
+        style={{ display: isLoggedIn && hasAccess ? "block" : "none" }}
       >
         <div class="hamburger-menu">
           <input id="menu__toggle" type="checkbox" />
@@ -1390,6 +1844,48 @@ function App() {
                           ▼
                         </button>
                       </div>
+                      <input
+                        type="text"
+                        placeholder="Enter Description"
+                        className="foldername-input"
+                        value={subfolder.description || ""}
+                        readOnly={
+                          // Image Uploader can only ADD description (when empty), not EDIT existing
+                          // Site Assessor can always edit
+                          !userPermissions.can_delete && 
+                          (subfolder.description && subfolder.description.trim() !== "")
+                        }
+                        style={{
+                          backgroundColor: 
+                            (!userPermissions.can_delete && 
+                             (subfolder.description && subfolder.description.trim() !== ""))
+                              ? "#e0e0e0" // Grey when read-only
+                              : "lightblue",
+                          borderRadius: "5px",
+                          margin: "5px 0",
+                          padding: "5px",
+                          border: "1px solid #ccc",
+                          width: "100%",
+                          cursor: 
+                            (!userPermissions.can_delete && 
+                             (subfolder.description && subfolder.description.trim() !== ""))
+                              ? "not-allowed"
+                              : "text"
+                        }}
+                        onChange={(e) =>
+                          handleDescriptionChange(
+                            folderIndex,
+                            subfolderIndex,
+                            e.target.value
+                          )
+                        }
+                        title={
+                          (!userPermissions.can_delete && 
+                           (subfolder.description && subfolder.description.trim() !== ""))
+                            ? "Only Site Assessors can edit existing descriptions"
+                            : ""
+                        }
+                      />
                       {subfolder.images.length === 0 && (
                         <label
                           className="custom-file-upload"
@@ -1478,31 +1974,33 @@ function App() {
                               <i className="fa-regular fa-flag"></i>
                             )}
                           </button>
-                          <label
-                            className="edit-button"
-                            style={{
-                              position: "absolute",
-                              top: "5px",
-                              right: "5px",
-                              background: "rgba(0, 0, 0, 0.5)",
-                              color: "white",
-                              borderRadius: "5px",
-                              padding: "2px 5px",
-                              cursor: "pointer",
-                              backgroundColor: "red",
-                            }}
-                            onClick={(event) =>
-                              handleEditImage(
-                                folderIndex,
-                                subfolderIndex,
-                                subfolder.name,
-                                imageIndex,
-                                event
-                              )
-                            }
-                          >
-                            X
-                          </label>
+                          {userPermissions.can_delete && !modalVisible && (
+                            <label
+                              className="edit-button"
+                              style={{
+                                position: "absolute",
+                                top: "5px",
+                                right: "5px",
+                                background: "rgba(0, 0, 0, 0.5)",
+                                color: "white",
+                                borderRadius: "5px",
+                                padding: "2px 5px",
+                                cursor: "pointer",
+                                backgroundColor: "red",
+                              }}
+                              onClick={(event) =>
+                                handleEditImage(
+                                  folderIndex,
+                                  subfolderIndex,
+                                  subfolder.name,
+                                  imageIndex,
+                                  event
+                                )
+                              }
+                            >
+                              X
+                            </label>
+                          )}
                         </div>
                       ))}
                       {subfolder.images.length > 0 && (
